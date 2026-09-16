@@ -37,9 +37,18 @@ async function apiFetch(path: string, options: ApiOptions = {}) {
   const { skipCsrf, headers, ...rest } = options;
 
   const finalHeaders: Record<string, string> = {
-    'Content-Type': 'application/json',
     ...(headers as Record<string, string> | undefined),
   };
+  
+  // Only default to json if not sending FormData
+  if (!options.body || !(options.body instanceof FormData)) {
+    if (!finalHeaders['Content-Type']) {
+      finalHeaders['Content-Type'] = 'application/json';
+    }
+  } else if (finalHeaders['Content-Type'] === 'multipart/form-data') {
+      // If it's FormData, we MUST delete the explicit header so the browser sets the boundary
+      delete finalHeaders['Content-Type'];
+  }
 
   const method = (options.method || 'GET').toUpperCase();
   if (!skipCsrf && method !== 'GET' && method !== 'HEAD') {
@@ -76,6 +85,8 @@ export const api = {
   post: (path: string, data?: unknown) =>
     apiFetch(path, {
       method: 'POST',
-      body: data !== undefined ? JSON.stringify(data) : undefined,
+      body: data !== undefined 
+          ? (data instanceof FormData ? data : JSON.stringify(data)) 
+          : undefined,
     }),
 };

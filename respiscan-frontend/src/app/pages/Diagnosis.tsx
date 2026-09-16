@@ -1,24 +1,95 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Upload, FileDown, ScanHeart, CheckCircle, AlertTriangle, Play, RefreshCw, ZoomIn } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
+import { api } from '../utils/api';
 
 export function Diagnosis() {
-  const [status, setStatus] = useState<'idle' | 'analyzing' | 'complete'>('complete'); // Set to complete to show the requested state by default
+  const [status, setStatus] = useState<'idle' | 'analyzing' | 'complete'>('idle');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [scanResult, setScanResult] = useState<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [pollIntervalId, setPollIntervalId] = useState<any>(null);
+
+  // Clean up polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalId) clearInterval(pollIntervalId);
+    };
+  }, [pollIntervalId]);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setSelectedFile(e.target.files[0]);
+      setStatus('idle');
+      setScanResult(null);
+    }
+  };
+
+  const handleBoxClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const pollResults = (scanId: number) => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await api.get(`/diagnostics/${scanId}/`);
+        if (res.status !== 'Pending') {
+          clearInterval(interval);
+          setScanResult(res);
+          setStatus('complete');
+        }
+      } catch (err) {
+        console.error("Error polling scan result", err);
+        clearInterval(interval);
+        setStatus('idle');
+      }
+    }, 2000);
+    setPollIntervalId(interval);
+  };
+
+  const runAnalysis = async () => {
+    if (!selectedFile) return;
+    setStatus('analyzing');
+    
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    formData.append('patient_id', '1'); // Hardcoded for demo purposes
+
+    try {
+      const response = await api.post('/diagnostics/upload/', formData);
+      
+      const scanId = response.scan_id;
+      // Start polling for result
+      pollResults(scanId);
+
+    } catch (err) {
+      console.error("Upload failed", err);
+      setStatus('idle');
+    }
+  };
+
+  const handleReset = () => {
+    setStatus('idle');
+    setSelectedFile(null);
+    setScanResult(null);
+    if (pollIntervalId) clearInterval(pollIntervalId);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   return (
     <div className="space-y-6 h-full flex flex-col">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 tracking-tight">AI Diagnosis Workspace</h2>
-          <p className="text-slate-500">YOLOv11 + CBAM / Grad-CAM Pneumonia Detection</p>
+          <p className="text-slate-500">DenseNet-121 / Grad-CAM Pneumonia Detection</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="bg-slate-100 px-4 py-2 rounded-md border border-slate-200 flex items-center gap-2">
             <span className="text-sm text-slate-500">Active Patient:</span>
             <span className="font-medium text-slate-900">PT-2024-001 (Antonio Garcia)</span>
           </div>
-          <Button variant="outline" onClick={() => setStatus('idle')}>
+          <Button variant="outline" onClick={handleReset}>
             <RefreshCw className="h-4 w-4 mr-2" /> Reset
           </Button>
         </div>
@@ -32,14 +103,26 @@ export function Diagnosis() {
               <CardTitle>Image Input</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 flex flex-col items-center justify-center bg-slate-50 text-center hover:bg-slate-100 transition-colors cursor-pointer">
+              <input 
+                type="file" 
+                ref={fileInputRef}
+                onChange={handleFileSelect}
+                className="hidden" 
+                accept="image/png, image/jpeg, image/jpg" 
+              />
+              <div 
+                onClick={handleBoxClick}
+                className="border-2 border-dashed border-slate-300 rounded-lg p-6 flex flex-col items-center justify-center bg-slate-50 text-center hover:bg-slate-100 transition-colors cursor-pointer"
+              >
                 <Upload className="h-8 w-8 text-teal-600 mb-3" />
-                <p className="text-sm font-medium text-slate-900">Upload Chest X-Ray</p>
-                <p className="text-xs text-slate-500 mt-1">PNG, JPG, DICOM (Max 15MB)</p>
+                <p className="text-sm font-medium text-slate-900">
+                  {selectedFile ? selectedFile.name : "Click to Upload Chest X-Ray"}
+                </p>
+                <p className="text-xs text-slate-500 mt-1">PNG, JPG (Max 15MB)</p>
               </div>
 
-              {status === 'idle' && (
-                <Button className="w-full" size="lg" onClick={() => setStatus('analyzing')}>
+              {status === 'idle' && selectedFile && (
+                <Button className="w-full" size="lg" onClick={runAnalysis}>
                   <Play className="h-5 w-5 mr-2" /> Run Analysis
                 </Button>
               )}
@@ -50,22 +133,22 @@ export function Diagnosis() {
                 </Button>
               )}
 
-              {status === 'complete' && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex flex-col gap-2">
-                  <div className="flex items-center gap-2 text-red-700 font-semibold">
-                    <AlertTriangle className="h-5 w-5" />
-                    Detection: Positive
+              {status === 'complete' && scanResult && (
+                <div className={`border rounded-lg p-4 flex flex-col gap-2 ${scanResult.status === 'Positive' ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
+                  <div className={`flex items-center gap-2 font-semibold ${scanResult.status === 'Positive' ? 'text-red-700' : 'text-green-700'}`}>
+                    {scanResult.status === 'Positive' ? <AlertTriangle className="h-5 w-5" /> : <CheckCircle className="h-5 w-5" />}
+                    Detection: {scanResult.status}
                   </div>
-                  <p className="text-sm text-red-600">
-                    Bacterial Pneumonia detected with high confidence in the right middle lobe.
+                  <p className={`text-sm ${scanResult.status === 'Positive' ? 'text-red-600' : 'text-green-600'}`}>
+                    {scanResult.status === 'Positive' ? 'Bacterial Pneumonia detected by the model.' : 'No signs of bacterial pneumonia detected.'}
                   </p>
-                  <div className="mt-2 bg-white rounded-md border border-red-100 p-3">
+                  <div className={`mt-2 bg-white rounded-md border p-3 ${scanResult.status === 'Positive' ? 'border-red-100' : 'border-green-100'}`}>
                     <div className="flex justify-between text-sm mb-1">
                       <span className="text-slate-600">Model Confidence</span>
-                      <span className="font-medium text-slate-900">94.2%</span>
+                      <span className="font-medium text-slate-900">{(scanResult.confidence * 100).toFixed(1)}%</span>
                     </div>
                     <div className="w-full bg-slate-100 rounded-full h-2">
-                      <div className="bg-red-500 h-2 rounded-full" style={{ width: '94.2%' }}></div>
+                      <div className={`h-2 rounded-full ${scanResult.status === 'Positive' ? 'bg-red-500' : 'bg-green-500'}`} style={{ width: `${scanResult.confidence * 100}%` }}></div>
                     </div>
                   </div>
                 </div>
@@ -84,7 +167,7 @@ export function Diagnosis() {
                   <textarea 
                     className="w-full h-24 rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
                     placeholder="Add clinical observations here..."
-                    defaultValue="Consolidation observed in right middle lobe consistent with bacterial pneumonia. Grad-CAM confirms model focus on opacity."
+                    defaultValue={scanResult?.status === 'Positive' ? "Consolidation observed consistent with bacterial pneumonia. Grad-CAM confirms model focus." : "Clear lungs, no visible consolidation."}
                   />
                 </div>
                 <Button className="w-full gap-2">
@@ -112,7 +195,7 @@ export function Diagnosis() {
             {status === 'idle' || status === 'analyzing' ? (
               <div className="col-span-full flex flex-col items-center justify-center text-slate-500 border-2 border-dashed border-slate-700 rounded-lg">
                 <ScanHeart className={`h-16 w-16 mb-4 ${status === 'analyzing' ? 'animate-pulse text-teal-500' : 'text-slate-600'}`} />
-                <p>{status === 'analyzing' ? 'Processing via YOLOv11 + CBAM...' : 'Upload an image and run analysis to view results'}</p>
+                <p>{status === 'analyzing' ? 'Processing image via API...' : 'Select an image and run analysis to view results'}</p>
               </div>
             ) : (
               <>
@@ -122,7 +205,7 @@ export function Diagnosis() {
                   </div>
                   <div className="flex-1 bg-black rounded-b-md overflow-hidden relative border border-slate-700 group">
                     <img 
-                      src="https://images.unsplash.com/photo-1631651363531-fd29aec4cb5c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjaGVzdCUyMHgtcmF5fGVufDF8fHx8MTc4MTc5NDMxNHww&ixlib=rb-4.1.0&q=80&w=1080" 
+                      src={scanResult?.original_image_url || ''} 
                       alt="Original Chest X-Ray" 
                       className="absolute inset-0 w-full h-full object-contain"
                     />
@@ -136,23 +219,16 @@ export function Diagnosis() {
                   <div className="flex-1 bg-black rounded-b-md overflow-hidden relative border border-slate-700 group">
                     {/* Background original image for context */}
                     <img 
-                      src="https://images.unsplash.com/photo-1631651363531-fd29aec4cb5c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjaGVzdCUyMHgtcmF5fGVufDF8fHx8MTc4MTc5NDMxNHww&ixlib=rb-4.1.0&q=80&w=1080" 
+                      src={scanResult?.original_image_url || ''} 
                       alt="Background Context" 
                       className="absolute inset-0 w-full h-full object-contain opacity-50 mix-blend-luminosity grayscale"
                     />
-                    {/* Heatmap overlay (using thermal image as approximation for Grad-CAM) */}
+                    {/* Heatmap overlay returned from Supabase */}
                     <img 
-                      src="https://images.unsplash.com/photo-1767556030469-9c135b2e9a9d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx0aGVybWFsJTIwaW1hZ2luZ3xlbnwxfHx8fDE3ODE3OTQzMTd8MA&ixlib=rb-4.1.0&q=80&w=1080" 
+                      src={scanResult?.heatmap_image_url || ''} 
                       alt="Grad-CAM Overlay" 
                       className="absolute inset-0 w-full h-full object-cover mix-blend-color-dodge opacity-70"
-                      style={{ clipPath: 'inset(20% 20% 30% 40%)' }}
                     />
-                    {/* Bounding box representation */}
-                    <div className="absolute border-2 border-red-500 rounded-sm" style={{ top: '25%', left: '45%', width: '30%', height: '40%' }}>
-                      <div className="bg-red-500 text-white text-[10px] font-bold px-1 py-0.5 absolute -top-5 -left-0.5 whitespace-nowrap">
-                        Pneumonia 0.94
-                      </div>
-                    </div>
                   </div>
                 </div>
               </>
