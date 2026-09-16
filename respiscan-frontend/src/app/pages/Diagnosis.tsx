@@ -9,14 +9,14 @@ export function Diagnosis() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [scanResult, setScanResult] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [pollIntervalId, setPollIntervalId] = useState<any>(null);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Clean up polling on unmount
   useEffect(() => {
     return () => {
-      if (pollIntervalId) clearInterval(pollIntervalId);
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
     };
-  }, [pollIntervalId]);
+  }, []);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -36,16 +36,18 @@ export function Diagnosis() {
         const res = await api.get(`/diagnostics/${scanId}/`);
         if (res.status !== 'Pending') {
           clearInterval(interval);
+          pollIntervalRef.current = null;
           setScanResult(res);
           setStatus('complete');
         }
       } catch (err) {
         console.error("Error polling scan result", err);
         clearInterval(interval);
+        pollIntervalRef.current = null;
         setStatus('idle');
       }
     }, 2000);
-    setPollIntervalId(interval);
+    pollIntervalRef.current = interval;
   };
 
   const runAnalysis = async () => {
@@ -73,7 +75,10 @@ export function Diagnosis() {
     setStatus('idle');
     setSelectedFile(null);
     setScanResult(null);
-    if (pollIntervalId) clearInterval(pollIntervalId);
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
