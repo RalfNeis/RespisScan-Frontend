@@ -538,7 +538,7 @@ export function AccountSettings() {
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          {active === 'profile' && <ProfileTab user={user} />}
+          {active === 'profile' && <ProfileTab user={{ name: user.first_name ? `${user.first_name} ${user.last_name}` : user.username, email: user.email || '', role: user.role }} />}
           {active === 'security' && <SecurityTab />}
           {active === 'notifications' && <NotificationsTab role={user.role} />}
           {active === 'system' && user.role === 'admin' && <SystemTab />}

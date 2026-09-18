@@ -5,11 +5,25 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import { api } from '../utils/api';
 
 export function Diagnosis() {
-  const [status, setStatus] = useState<'idle' | 'analyzing' | 'complete'>('idle');
+  const [status, setStatus] = useState<'idle' | 'analyzing' | 'complete' | 'failed'>('idle');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [scanResult, setScanResult] = useState<any>(null);
+  const [patientId, setPatientId] = useState('');
+  const [patients, setPatients] = useState<{ id: number; patient_id: string; name: string }[]>([]);
+  const [currentScanId, setCurrentScanId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Fetch patient list on mount
+  useEffect(() => {
+    api.get('/patients/')
+      .then((res: any) => {
+        const list = Array.isArray(res) ? res : res.results ?? [];
+        setPatients(list);
+        if (list.length > 0) setPatientId(String(list[0].id));
+      })
+      .catch(() => {});
+  }, []);
 
   // Clean up polling on unmount
   useEffect(() => {
@@ -31,10 +45,16 @@ export function Diagnosis() {
   };
 
   const pollResults = (scanId: number) => {
+    setCurrentScanId(scanId);
     const interval = setInterval(async () => {
       try {
         const res = await api.get(`/diagnostics/${scanId}/`);
-        if (res.status !== 'Pending') {
+        if (res.status === 'Failed') {
+          clearInterval(interval);
+          pollIntervalRef.current = null;
+          setScanResult(res);
+          setStatus('failed');
+        } else if (res.status !== 'Pending') {
           clearInterval(interval);
           pollIntervalRef.current = null;
           setScanResult(res);
@@ -44,7 +64,7 @@ export function Diagnosis() {
         console.error("Error polling scan result", err);
         clearInterval(interval);
         pollIntervalRef.current = null;
-        setStatus('idle');
+        setStatus('failed');
       }
     }, 2000);
     pollIntervalRef.current = interval;
@@ -56,7 +76,7 @@ export function Diagnosis() {
     
     const formData = new FormData();
     formData.append('file', selectedFile);
-    formData.append('patient_id', '1'); // Hardcoded for demo purposes
+    formData.append('patient_id', patientId);
 
     try {
       const response = await api.post('/diagnostics/upload/', formData);
@@ -91,8 +111,17 @@ export function Diagnosis() {
         </div>
         <div className="flex items-center gap-3">
           <div className="bg-slate-100 px-4 py-2 rounded-md border border-slate-200 flex items-center gap-2">
-            <span className="text-sm text-slate-500">Active Patient:</span>
-            <span className="font-medium text-slate-900">PT-2024-001 (Antonio Garcia)</span>
+            <span className="text-sm text-slate-500">Patient:</span>
+            <select
+              value={patientId}
+              onChange={(e) => setPatientId(e.target.value)}
+              className="bg-transparent font-medium text-slate-900 outline-none text-sm"
+            >
+              {patients.length === 0 && <option value="">No patients registered</option>}
+              {patients.map((p) => (
+                <option key={p.id} value={p.id}>{p.name} ({p.patient_id})</option>
+              ))}
+            </select>
           </div>
           <Button variant="outline" onClick={handleReset}>
             <RefreshCw className="h-4 w-4 mr-2" /> Reset
@@ -161,6 +190,23 @@ export function Diagnosis() {
             </CardContent>
           </Card>
 
+          {status === 'failed' && (
+            <Card>
+              <CardContent className="p-6">
+                <div className="border rounded-lg p-4 bg-red-50 border-red-200">
+                  <div className="flex items-center gap-2 font-semibold text-red-700">
+                    <AlertTriangle className="h-5 w-5" />
+                    Analysis Failed
+                  </div>
+                  <p className="text-sm text-red-600 mt-1">The AI model could not process this image. Please try again or contact support.</p>
+                  <Button variant="outline" className="mt-3" onClick={handleReset}>
+                    <RefreshCw className="h-4 w-4 mr-2" /> Try Again
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {status === 'complete' && (
             <Card>
               <CardHeader>
@@ -169,14 +215,21 @@ export function Diagnosis() {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-700">Radiologist Notes</label>
-                  <textarea 
+                  <textarea
                     className="w-full h-24 rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
                     placeholder="Add clinical observations here..."
                     defaultValue={scanResult?.status === 'Positive' ? "Consolidation observed consistent with bacterial pneumonia. Grad-CAM confirms model focus." : "Clear lungs, no visible consolidation."}
                   />
                 </div>
-                <Button className="w-full gap-2">
-                  <FileDown className="h-4 w-4" /> Download Medical Report
+                <Button
+                  className="w-full gap-2"
+                  onClick={() => {
+                    if (currentScanId) {
+                      window.open(`/api/diagnostics/${currentScanId}/export/`, '_blank');
+                    }
+                  }}
+                >
+                  <FileDown className="h-4 w-4" /> Export PDF Report
                 </Button>
               </CardContent>
             </Card>

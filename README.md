@@ -1,1 +1,1 @@
-# RepisScan-Frontend
+# RespiScan-Frontend

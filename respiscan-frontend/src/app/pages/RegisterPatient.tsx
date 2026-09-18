@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ChevronLeft, User, Phone, MapPin, HeartPulse, AlertCircle, UserCheck, Check } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { api } from '../utils/api';
 
 type FormData = {
   firstName: string;
@@ -123,13 +124,37 @@ export function RegisterPatient() {
     return e;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errs = validate();
     if (Object.keys(errs).length) { setErrors(errs); return; }
     setErrors({});
-    setSubmitted(true);
-    setTimeout(() => navigate('/patients'), 1800);
+
+    // Calculate age from date of birth
+    const dob = new Date(form.dateOfBirth);
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const monthDiff = today.getMonth() - dob.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+      age--;
+    }
+
+    // Generate a patient ID
+    const patientId = `PT-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`;
+
+    try {
+      await api.post('/patients/', {
+        patient_id: patientId,
+        name: `${form.firstName} ${form.lastName}`,
+        age: age,
+        gender: form.gender,
+      });
+      setSubmitted(true);
+      setTimeout(() => navigate('/patients'), 1800);
+    } catch (err: any) {
+      setErrors({ firstName: err.body?.detail || err.message || 'Failed to save patient. Please try again.' });
+    }
   };
 
   if (submitted) {

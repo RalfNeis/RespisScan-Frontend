@@ -12,7 +12,7 @@ const API_BASE = '/api';
 let csrfToken: string | null = null;
 
 async function getCsrfToken(): Promise<string> {
-  if (csrfToken) return csrfToken;
+  // Always fetch a fresh token to avoid stale CSRF errors after login/session rotation
   const res = await fetch(`${API_BASE}/auth/csrf/`, { credentials: 'include' });
   const data = await res.json();
   csrfToken = data.csrfToken;

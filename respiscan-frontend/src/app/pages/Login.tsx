@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { HeartPulse, Lock, Mail, ShieldCheck } from 'lucide-react';
-import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { useAuth } from '../context/AuthContext';
 
 export function Login() {
@@ -44,7 +44,7 @@ export function Login() {
           </div>
         </div>
         <h2 className="mt-6 text-center text-3xl font-extrabold text-slate-900">
-          Repiscan
+          Respiscan
         </h2>
         <p className="mt-2 text-center text-sm text-slate-600">
           AI-Powered Bacterial Pneumonia Detection

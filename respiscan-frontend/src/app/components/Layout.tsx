@@ -38,7 +38,7 @@ export function Layout() {
         <div className="h-16 flex items-center px-6 border-b border-slate-800">
           <div className="flex items-center gap-2 text-white font-bold text-xl tracking-tight">
             <HeartPulse className="h-6 w-6 text-teal-500" />
-            Repiscan
+            Respiscan
           </div>
         </div>
         <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
