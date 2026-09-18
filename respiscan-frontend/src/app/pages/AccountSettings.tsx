@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   User, Lock, Bell, Sliders, Eye, EyeOff, Check,
   ShieldCheck, Monitor, Database, ChevronRight,
-  AlertTriangle, Clock, Fingerprint,
+  AlertTriangle, Fingerprint,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '../utils/cn';

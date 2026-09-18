@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router';
 import { Activity, Users, FileText, BarChart2, LogOut, HeartPulse, Settings } from 'lucide-react';
 import { cn } from '../utils/cn';
@@ -25,42 +25,42 @@ export function Layout() {
   if (!user) return null;
 
   const handleLogout = () => {
-    logout();
-    navigate('/login');
+    logout().then(() => navigate('/login'));
   };
 
-  const filteredNavigation = navigation.filter(item => item.roles.includes(user.role));
+  const displayName = user.first_name ? `${user.first_name} ${user.last_name}` : user.username;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
       {/* Sidebar */}
-      <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col shrink-0 h-screen sticky top-0">
+      <aside className="w-full md:w-64 bg-slate-900 text-slate-300 flex flex-col shrink-0">
         <div className="h-16 flex items-center px-6 border-b border-slate-800">
-          <div className="flex items-center gap-2 text-white font-bold text-xl tracking-tight">
-            <HeartPulse className="h-6 w-6 text-teal-500" />
-            Respiscan
-          </div>
+          <HeartPulse className="h-6 w-6 text-teal-400 mr-2" />
+          <h1 className="text-xl font-bold text-white tracking-tight">Respiscan</h1>
         </div>
-        <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-          {filteredNavigation.map((item) => (
-            <NavLink
-              key={item.name}
-              to={item.to}
-              end={item.to === '/'}
-              className={({ isActive }) =>
-                cn(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors',
-                  isActive
-                    ? 'bg-teal-600/10 text-teal-400'
-                    : 'hover:bg-slate-800 hover:text-white'
-                )
-              }
-            >
-              <item.icon className="h-5 w-5" />
-              {item.name}
-            </NavLink>
-          ))}
-        </div>
+        
+        <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
+          {navigation.map((item) => {
+            if (!item.roles.includes(user.role)) return null;
+            return (
+              <NavLink
+                key={item.name}
+                to={item.to}
+                className={({ isActive }) =>
+                  cn(
+                    'flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors',
+                    isActive
+                      ? 'bg-teal-500/10 text-teal-400'
+                      : 'hover:bg-slate-800 hover:text-white'
+                  )
+                }
+              >
+                <item.icon className="h-5 w-5 shrink-0" />
+                {item.name}
+              </NavLink>
+            );
+          })}
+        </nav>
         <div className="p-4 border-t border-slate-800">
           <div className="flex items-center gap-3 mb-4 px-2">
             <div className="h-9 w-9 rounded-full bg-slate-700 overflow-hidden">
@@ -68,12 +68,12 @@ export function Layout() {
                 src={user.role === 'admin' 
                   ? "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkb2N0b3IlMjBwb3J0cmFpdCUyMHByb2Zlc3Npb25hbHxlbnwxfHx8fDE3ODE3OTQzMjB8MA&ixlib=rb-4.1.0&q=80&w=1080" 
                   : "https://images.unsplash.com/photo-1594824406567-b50e326c07a0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxudXJzZSUyMHBvcnRyYWl0fGVufDB8fHx8MTc4MTc5NDMyMHww&ixlib=rb-4.1.0&q=80&w=1080"} 
-                alt={user.name} 
+                alt={displayName} 
                 className="h-full w-full object-cover" 
               />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">{user.name}</p>
+              <p className="text-sm font-medium text-white truncate">{displayName}</p>
               <p className="text-xs text-slate-400 truncate capitalize">{user.role}</p>
             </div>
           </div>
