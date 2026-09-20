@@ -89,4 +89,11 @@ export const api = {
           ? (data instanceof FormData ? data : JSON.stringify(data)) 
           : undefined,
     }),
+  patch: (path: string, data?: unknown) =>
+    apiFetch(path, {
+      method: 'PATCH',
+      body: data !== undefined ? JSON.stringify(data) : undefined,
+    }),
+  delete: (path: string) =>
+    apiFetch(path, { method: 'DELETE' }),
 };

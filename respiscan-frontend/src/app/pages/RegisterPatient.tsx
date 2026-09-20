@@ -43,15 +43,16 @@ function Label({ children, required }: { children: React.ReactNode; required?: b
 }
 
 function FieldInput({
-  value, onChange, placeholder, type = 'text', disabled,
+  value, onChange, placeholder, type = 'text', disabled, onFocus
 }: {
-  value: string; onChange: (v: string) => void; placeholder?: string; type?: string; disabled?: boolean;
+  value: string; onChange: (v: string) => void; placeholder?: string; type?: string; disabled?: boolean; onFocus?: () => void;
 }) {
   return (
     <input
       type={type}
       value={value}
       onChange={e => onChange(e.target.value)}
+      onFocus={onFocus}
       placeholder={placeholder}
       disabled={disabled}
       className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition disabled:bg-slate-50 disabled:cursor-not-allowed"
@@ -149,6 +150,10 @@ export function RegisterPatient() {
         name: `${form.firstName} ${form.lastName}`,
         age: age,
         gender: form.gender,
+        contact_number: form.contactNumber,
+        emergency_contact_name: form.emergencyName,
+        emergency_contact_relationship: form.emergencyRelationship,
+        emergency_contact_number: form.emergencyContact,
       });
       setSubmitted(true);
       setTimeout(() => navigate('/patients'), 1800);
@@ -279,7 +284,16 @@ export function RegisterPatient() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label required>Contact Number</Label>
-              <FieldInput value={form.contactNumber} onChange={set('contactNumber')} placeholder="+63 9XX XXX XXXX" />
+              <FieldInput 
+                value={form.contactNumber} 
+                onChange={set('contactNumber')} 
+                onFocus={() => {
+                  if (!form.contactNumber) {
+                    set('contactNumber')('+63 ');
+                  }
+                }}
+                placeholder="+63 9XX XXX XXXX" 
+              />
               {errors.contactNumber && <p className="text-xs text-red-500 mt-1">{errors.contactNumber}</p>}
             </div>
             <div>
@@ -327,7 +341,16 @@ export function RegisterPatient() {
             </div>
             <div>
               <Label>Contact Number</Label>
-              <FieldInput value={form.emergencyContact} onChange={set('emergencyContact')} placeholder="+63 9XX XXX XXXX" />
+              <FieldInput 
+                value={form.emergencyContact} 
+                onChange={set('emergencyContact')} 
+                onFocus={() => {
+                  if (!form.emergencyContact) {
+                    set('emergencyContact')('+63 ');
+                  }
+                }}
+                placeholder="+63 9XX XXX XXXX" 
+              />
             </div>
           </div>
         </div>

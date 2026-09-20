@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { ArrowUpRight } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { api } from '../utils/api';
 
@@ -43,32 +42,14 @@ export function Dashboard() {
             
             {/* Primary Metric Card */}
             <Card className="xl:col-span-2 bg-slate-900 text-white border-slate-800 shadow-lg">
-              <CardContent className="p-8 sm:p-10 flex flex-col justify-between h-full">
+              <CardContent className="p-8 sm:p-10">
                 <div>
                   <div className="text-slate-400 mb-4">
                     <span className="font-medium tracking-wide uppercase text-xs">Total Registered Patients</span>
                   </div>
-                  <div className="flex items-end gap-4">
-                    <p className="text-6xl sm:text-7xl font-bold tracking-tight">
-                      {data?.total_patients?.toLocaleString() ?? 0}
-                    </p>
-                    <div className="flex items-center text-teal-400 text-sm font-medium mb-2">
-                      <ArrowUpRight className="h-4 w-4 mr-1" />
-                      12.5% vs last month
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Embedded mini stats inside primary card for more hierarchy */}
-                <div className="mt-12 grid grid-cols-2 gap-8 pt-8 border-t border-slate-800">
-                  <div>
-                    <p className="text-slate-400 text-sm font-medium mb-1">Average Daily Registrations</p>
-                    <p className="text-2xl font-semibold text-slate-200">24</p>
-                  </div>
-                  <div>
-                    <p className="text-slate-400 text-sm font-medium mb-1">Active This Week</p>
-                    <p className="text-2xl font-semibold text-slate-200">142</p>
-                  </div>
+                  <p className="text-6xl sm:text-7xl font-bold tracking-tight">
+                    {data?.total_patients?.toLocaleString() ?? 0}
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -77,37 +58,22 @@ export function Dashboard() {
             <div className="flex flex-col gap-6 justify-between">
               <Card className="shadow-sm">
                 <CardContent className="p-6">
-                  <div>
-                    <p className="text-sm font-medium text-slate-500 uppercase tracking-wider mb-2">CXR Scans Processed</p>
-                    <div className="flex items-end gap-3">
-                      <p className="text-3xl font-bold text-slate-900">{data?.total_scans?.toLocaleString() ?? 0}</p>
-                      <span className="text-xs font-medium text-slate-400 mb-1">+4.2%</span>
-                    </div>
-                  </div>
+                  <p className="text-sm font-medium text-slate-500 uppercase tracking-wider mb-2">CXR Scans Processed</p>
+                  <p className="text-3xl font-bold text-slate-900">{data?.total_scans?.toLocaleString() ?? 0}</p>
                 </CardContent>
               </Card>
 
               <Card className="shadow-sm">
                 <CardContent className="p-6">
-                  <div>
-                    <p className="text-sm font-medium text-slate-500 uppercase tracking-wider mb-2">Positive Detections</p>
-                    <div className="flex items-end gap-3">
-                      <p className="text-3xl font-bold text-slate-900">{data?.positive_detections?.toLocaleString() ?? 0}</p>
-                      <span className="text-xs font-medium text-slate-400 mb-1">+1.1%</span>
-                    </div>
-                  </div>
+                  <p className="text-sm font-medium text-slate-500 uppercase tracking-wider mb-2">Positive Detections</p>
+                  <p className="text-3xl font-bold text-slate-900">{data?.positive_detections?.toLocaleString() ?? 0}</p>
                 </CardContent>
               </Card>
 
               <Card className="shadow-sm">
                 <CardContent className="p-6">
-                  <div>
-                    <p className="text-sm font-medium text-slate-500 uppercase tracking-wider mb-2">Reports Generated</p>
-                    <div className="flex items-end gap-3">
-                      <p className="text-3xl font-bold text-slate-900">{data?.reports_generated?.toLocaleString() ?? 0}</p>
-                      <span className="text-xs font-medium text-slate-400 mb-1">+8.4%</span>
-                    </div>
-                  </div>
+                  <p className="text-sm font-medium text-slate-500 uppercase tracking-wider mb-2">Reports Generated</p>
+                  <p className="text-3xl font-bold text-slate-900">{data?.reports_generated?.toLocaleString() ?? 0}</p>
                 </CardContent>
               </Card>
             </div>
@@ -142,7 +108,7 @@ export function Dashboard() {
 
             <Card className="shadow-sm">
               <CardHeader>
-                <CardTitle className="text-lg">Recent Transactions</CardTitle>
+                <CardTitle className="text-lg">Recent Activity</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '../utils/cn';
+import { api } from '../utils/api';
 
 /* ─── types ─────────────────────────────────────────────── */
 
@@ -124,17 +125,37 @@ function SaveButton({ saved, label = 'Save Changes', onClick }: {
 
 /* ─── tab: Profile ───────────────────────────────────────── */
 
-function ProfileTab({ user }: { user: { name: string; email: string; role: string } }) {
-  const [name, setName] = useState(user.name);
-  const [email, setEmail] = useState(user.email);
-  const [specialty, setSpecialty] = useState(
-    user.role === 'admin' ? 'Pulmonology / Radiology' : 'Respiratory Nursing'
-  );
-  const [department, setDepartment] = useState('Diagnostic Imaging Unit');
-  const [bio, setBio] = useState('');
+function ProfileTab({ user }: { user: { first_name: string; last_name: string; username: string; email: string; role: string; title?: string; department?: string; bio?: string } }) {
+  const [firstName, setFirstName] = useState(user.first_name || '');
+  const [lastName, setLastName] = useState(user.last_name || '');
+  const [email, setEmail] = useState(user.email || '');
+  const [specialty, setSpecialty] = useState(user.title || '');
+  const [department, setDepartment] = useState(user.department || '');
+  const [bio, setBio] = useState(user.bio || '');
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const save = () => { setSaved(true); setTimeout(() => setSaved(false), 2400); };
+  const save = async () => { 
+    setSaving(true);
+    try {
+      await api.patch('/auth/me/', {
+        first_name: firstName,
+        last_name: lastName,
+        email,
+        title: specialty,
+        department,
+        bio
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2400); 
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSaving(false);
+    }
+  };
+  
+  const name = `${firstName} ${lastName}`.trim() || user.username;
   const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
   return (
@@ -148,7 +169,7 @@ function ProfileTab({ user }: { user: { name: string; email: string; role: strin
         <div className="flex-1 min-w-0">
           <p className="text-base font-semibold text-slate-900">{name}</p>
           <p className="text-sm text-slate-500 capitalize mt-0.5">
-            {user.role === 'admin' ? 'Administrator' : 'Employee'} · {department}
+            {user.role === 'admin' ? 'Administrator' : 'Employee'} {department && `· ${department}`}
           </p>
         </div>
         <span className={cn(
@@ -163,14 +184,17 @@ function ProfileTab({ user }: { user: { name: string; email: string; role: strin
 
       {/* Fields */}
       <SectionBlock title="Personal Details" description="Your name and contact information displayed across the portal.">
-        <Row label="Full name">
-          <TextInput value={name} onChange={setName} placeholder="Full name" />
+        <Row label="First name">
+          <TextInput value={firstName} onChange={setFirstName} placeholder="First name" />
         </Row>
-        <Row label="Email address" hint="Used for login and system notifications">
+        <Row label="Last name">
+          <TextInput value={lastName} onChange={setLastName} placeholder="Last name" />
+        </Row>
+        <Row label="Email address" hint="Used for system notifications">
           <TextInput value={email} onChange={setEmail} type="email" placeholder="email@hospital.org" />
         </Row>
-        <Row label="Specialty" hint="Your clinical designation or area of focus">
-          <TextInput value={specialty} onChange={setSpecialty} placeholder="e.g. Pulmonology" />
+        <Row label="Specialty / Title" hint="Your clinical designation or area of focus">
+          <TextInput value={specialty} onChange={setSpecialty} placeholder="e.g. Pulmonologist" />
         </Row>
         <Row label="Department">
           <TextInput value={department} onChange={setDepartment} placeholder="Department name" />
@@ -188,7 +212,7 @@ function ProfileTab({ user }: { user: { name: string; email: string; role: strin
         </Row>
       </SectionBlock>
 
-      <SaveButton saved={saved} onClick={save} />
+      <SaveButton saved={saved} onClick={save} label={saving ? "Saving..." : "Save Changes"} />
     </div>
   );
 }
@@ -220,13 +244,28 @@ function SecurityTab() {
     { label: 'Strong', color: 'bg-green-500' },
   ][strength];
 
-  const save = () => {
-    if (pw && pw !== conf) { setError('Passwords do not match.'); return; }
-    if (pw && pw.length < 8) { setError('Minimum 8 characters required.'); return; }
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    if (!cur) { setError('Current password is required.'); return; }
+    if (pw && pw !== conf) { setError('New passwords do not match.'); return; }
+    if (pw && pw.length < 8) { setError('New password must be at least 8 characters.'); return; }
     setError('');
-    setSaved(true);
-    setCur(''); setPw(''); setConf('');
-    setTimeout(() => setSaved(false), 2400);
+    
+    setSaving(true);
+    try {
+      await api.patch('/auth/me/password/', {
+        current_password: cur,
+        new_password: pw
+      });
+      setSaved(true);
+      setCur(''); setPw(''); setConf('');
+      setTimeout(() => setSaved(false), 2400);
+    } catch (e: any) {
+      setError(e.body?.error || e.message || 'Failed to update password');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const EyeBtn = ({ show, toggle }: { show: boolean; toggle: () => void }) => (
@@ -328,7 +367,7 @@ function SecurityTab() {
         </Row>
       </SectionBlock>
 
-      <SaveButton saved={saved} label="Update Security" onClick={save} />
+      <SaveButton saved={saved} label={saving ? "Updating..." : "Update Security"} onClick={save} />
     </div>
   );
 }
@@ -337,27 +376,27 @@ function SecurityTab() {
 
 const NOTIF_EVENTS = [
   {
-    id: 'diagnosis_complete', label: 'Diagnosis result ready',
+    id: 'on_diagnosis_ready', label: 'Diagnosis result ready',
     hint: 'When a YOLOv11 analysis finishes', roles: ['admin', 'employee'],
   },
   {
-    id: 'positive_detection', label: 'Positive pneumonia detection',
+    id: 'on_positive_detection', label: 'Positive pneumonia detection',
     hint: 'Immediate alert on high-confidence positive result', roles: ['admin', 'employee'],
   },
   {
-    id: 'patient_registered', label: 'New patient registered',
+    id: 'on_new_patient', label: 'New patient registered',
     hint: 'When a new patient record is created', roles: ['admin', 'employee'],
   },
   {
-    id: 'report_generated', label: 'Report generated',
+    id: 'on_report_generated', label: 'Report generated',
     hint: 'When a scheduled or ad-hoc report is ready', roles: ['admin', 'employee'],
   },
   {
-    id: 'employee_login', label: 'Employee sign-in activity',
+    id: 'on_employee_activity', label: 'Employee sign-in activity',
     hint: 'Login events and access changes', roles: ['admin'],
   },
   {
-    id: 'system_alert', label: 'System & model alerts',
+    id: 'on_system_alerts', label: 'System & model alerts',
     hint: 'Model updates, downtime warnings, or errors', roles: ['admin'],
   },
 ];
@@ -366,17 +405,50 @@ function NotificationsTab({ role }: { role: string }) {
   const [email, setEmail] = useState(true);
   const [inApp, setInApp] = useState(true);
   const [events, setEvents] = useState<Record<string, boolean>>({
-    diagnosis_complete: true,
-    positive_detection: true,
-    patient_registered: false,
-    report_generated: true,
-    employee_login: true,
-    system_alert: true,
+    on_diagnosis_ready: true,
+    on_positive_detection: true,
+    on_new_patient: false,
+    on_report_generated: true,
+    on_employee_activity: false,
+    on_system_alerts: true,
   });
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  React.useEffect(() => {
+    api.get('/notifications/preferences/').then((res: any) => {
+      setEmail(res.email_enabled);
+      setInApp(res.in_app_enabled);
+      setEvents({
+        on_diagnosis_ready: res.on_diagnosis_ready,
+        on_positive_detection: res.on_positive_detection,
+        on_new_patient: res.on_new_patient,
+        on_report_generated: res.on_report_generated,
+        on_employee_activity: res.on_employee_activity,
+        on_system_alerts: res.on_system_alerts,
+      });
+    }).catch(err => {
+      console.error("Failed to fetch notification preferences:", err);
+    });
+  }, []);
 
   const toggle = (id: string) => setEvents(p => ({ ...p, [id]: !p[id] }));
-  const save = () => { setSaved(true); setTimeout(() => setSaved(false), 2400); };
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api.patch('/notifications/preferences/', {
+        email_enabled: email,
+        in_app_enabled: inApp,
+        ...events
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2400);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const visible = NOTIF_EVENTS.filter(e => e.roles.includes(role));
 
@@ -399,7 +471,7 @@ function NotificationsTab({ role }: { role: string }) {
         ))}
       </SectionBlock>
 
-      <SaveButton saved={saved} label="Save Preferences" onClick={save} />
+      <SaveButton saved={saved} label={saving ? "Saving..." : "Save Preferences"} onClick={save} />
     </div>
   );
 }
@@ -413,7 +485,38 @@ function SystemTab() {
   const [autoReport, setAutoReport] = useState(false);
   const [audit, setAudit] = useState(true);
   const [saved, setSaved] = useState(false);
-  const save = () => { setSaved(true); setTimeout(() => setSaved(false), 2400); };
+  const [saving, setSaving] = useState(false);
+
+  React.useEffect(() => {
+    api.get('/analytics/system-settings/').then((res: any) => {
+      setThreshold(Math.round(res.confidence_threshold * 100));
+      setGradcam(res.gradcam_overlay_default);
+      setAutoReport(res.auto_generate_report);
+      setRetention(String(res.data_retention_period));
+      setAudit(res.audit_logging_enabled);
+    }).catch(err => {
+      console.error("Failed to fetch system settings:", err);
+    });
+  }, []);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api.patch('/analytics/system-settings/', {
+        confidence_threshold: threshold / 100,
+        gradcam_overlay_default: gradcam,
+        auto_generate_report: autoReport,
+        data_retention_period: parseInt(retention),
+        audit_logging_enabled: audit
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2400);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -466,7 +569,7 @@ function SystemTab() {
         </Row>
       </SectionBlock>
 
-      <SaveButton saved={saved} label="Apply Settings" onClick={save} />
+      <SaveButton saved={saved} label={saving ? "Applying..." : "Apply Settings"} onClick={save} />
     </div>
   );
 }
@@ -538,7 +641,7 @@ export function AccountSettings() {
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          {active === 'profile' && <ProfileTab user={{ name: user.first_name ? `${user.first_name} ${user.last_name}` : user.username, email: user.email || '', role: user.role }} />}
+          {active === 'profile' && <ProfileTab user={user as any} />}
           {active === 'security' && <SecurityTab />}
           {active === 'notifications' && <NotificationsTab role={user.role} />}
           {active === 'system' && user.role === 'admin' && <SystemTab />}

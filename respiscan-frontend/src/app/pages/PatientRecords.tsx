@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Plus, Eye, FileText, Calendar, Filter, ChevronDown } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, Plus, Edit2, Trash2, FileText, Filter, ChevronDown } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card } from '../components/ui/card';
@@ -24,6 +24,19 @@ export function PatientRecords() {
   const [ageMin, setAgeMin] = useState('');
   const [ageMax, setAgeMax] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+
+  // Edit modal state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editPatient, setEditPatient] = useState<Patient | null>(null);
+  const [editForm, setEditForm] = useState({ name: '', age: '', gender: '' });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState('');
+
+  // Delete dialog state
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deletePatient, setDeletePatient] = useState<Patient | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   const navigate = useNavigate();
 
   const fetchPatients = () => {
@@ -53,6 +66,59 @@ export function PatientRecords() {
   };
 
   const hasActiveFilters = genderFilter || ageMin || ageMax;
+
+  // --- Edit handlers ---
+  const openEditModal = (pt: Patient) => {
+    setEditPatient(pt);
+    setEditForm({
+      name: pt.name,
+      age: pt.age?.toString() ?? '',
+      gender: pt.gender,
+    });
+    setEditError('');
+    setShowEditModal(true);
+  };
+
+  const handleEditSave = async () => {
+    if (!editPatient) return;
+    setEditSaving(true);
+    setEditError('');
+    try {
+      await api.patch(`/patients/${editPatient.id}/`, {
+        name: editForm.name,
+        age: editForm.age ? parseInt(editForm.age) : null,
+        gender: editForm.gender,
+      });
+      setShowEditModal(false);
+      setEditPatient(null);
+      fetchPatients();
+    } catch (e: any) {
+      setEditError(e.message || 'Failed to update patient');
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  // --- Delete handlers ---
+  const openDeleteDialog = (pt: Patient) => {
+    setDeletePatient(pt);
+    setShowDeleteDialog(true);
+  };
+
+  const handleDelete = async () => {
+    if (!deletePatient) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/patients/${deletePatient.id}/`);
+      setShowDeleteDialog(false);
+      setDeletePatient(null);
+      fetchPatients();
+    } catch {
+      // ignore
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -165,13 +231,18 @@ export function PatientRecords() {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex items-center justify-end gap-1">
                       <Button variant="ghost" size="sm" className="h-8 px-2 text-teal-600 hover:text-teal-700 hover:bg-teal-50" onClick={() => navigate('/diagnosis')}>
                         <FileText className="h-4 w-4 mr-1" /> Scan
                       </Button>
-                      <Button variant="ghost" size="sm" className="h-8 px-2 text-slate-600 hover:text-slate-900">
-                        <Eye className="h-4 w-4 mr-1" /> View
-                      </Button>
+                      <button onClick={() => openEditModal(pt)} title="Edit"
+                        className="p-2 text-slate-400 hover:text-teal-600 transition-colors">
+                        <Edit2 className="h-4 w-4" />
+                      </button>
+                      <button onClick={() => openDeleteDialog(pt)} title="Delete"
+                        className="p-2 text-slate-400 hover:text-red-600 transition-colors">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -183,6 +254,67 @@ export function PatientRecords() {
           <p>Showing {patients.length} record{patients.length !== 1 ? 's' : ''}</p>
         </div>
       </Card>
+
+      {/* Edit Patient Modal */}
+      {showEditModal && editPatient && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div className="p-6 border-b border-slate-200">
+              <h3 className="text-lg font-semibold text-slate-900">Edit Patient</h3>
+              <p className="text-sm text-slate-500 mt-1">Update details for {editPatient.patient_id}</p>
+            </div>
+            <div className="p-6 space-y-4">
+              {editError && <p className="text-sm text-red-600 bg-red-50 p-3 rounded-lg">{editError}</p>}
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Full Name</label>
+                <input className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Age</label>
+                  <input type="number" className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    value={editForm.age} onChange={e => setEditForm({ ...editForm, age: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Gender</label>
+                  <select className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    value={editForm.gender} onChange={e => setEditForm({ ...editForm, gender: e.target.value })}>
+                    <option value="">Select</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="p-6 border-t border-slate-200 flex justify-end gap-3">
+              <Button variant="outline" onClick={() => { setShowEditModal(false); setEditPatient(null); }} disabled={editSaving}>Cancel</Button>
+              <Button onClick={handleEditSave} disabled={editSaving}>{editSaving ? 'Saving...' : 'Save Changes'}</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteDialog && deletePatient && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">Delete Patient Record</h3>
+              <p className="text-sm text-slate-600">
+                Are you sure you want to delete the record for <strong>{deletePatient.name}</strong> ({deletePatient.patient_id})?
+                This action cannot be undone.
+              </p>
+            </div>
+            <div className="p-6 border-t border-slate-200 flex justify-end gap-3">
+              <Button variant="outline" onClick={() => { setShowDeleteDialog(false); setDeletePatient(null); }} disabled={deleting}>Cancel</Button>
+              <Button className="bg-red-600 hover:bg-red-700" onClick={handleDelete} disabled={deleting}>
+                {deleting ? 'Deleting...' : 'Delete'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

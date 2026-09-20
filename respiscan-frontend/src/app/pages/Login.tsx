@@ -88,13 +88,13 @@ export function Login() {
               {!otpRequired ? (
                 <>
                   <Input
-                    label="Email address"
+                    label="Email / Username"
                     type="text"
                     required
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     icon={<Mail className="h-4 w-4" />}
-                    placeholder={`Enter your ${role} email`}
+                    placeholder={`Enter your ${role} email or username`}
                   />
                   <Input
                     label="Password"
