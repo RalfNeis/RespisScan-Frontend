@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import {
   User, Lock, Bell, Sliders, Eye, EyeOff, Check,
   ShieldCheck, Monitor, Database, ChevronRight,
-  AlertTriangle, Fingerprint,
+  AlertTriangle, Fingerprint, LogOut
 } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '../utils/cn';
 import { api } from '../utils/api';
@@ -235,9 +236,10 @@ function SecurityTab() {
   const [showPw, setShowPw] = useState(false);
   const [showConf, setShowConf] = useState(false);
   const [mfa, setMfa] = useState(false);
-  const [timeout, setTimeout_] = useState('30');
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+  
+  const { sessionTimeout, updateSessionTimeout } = useAuth();
 
   const strength = (() => {
     if (!pw) return 0;
@@ -256,8 +258,9 @@ function SecurityTab() {
 
   const save = async () => {
     if (!cur) { setError('Current password is required.'); return; }
-    if (pw && pw !== conf) { setError('New passwords do not match.'); return; }
-    if (pw && pw.length < 8) { setError('New password must be at least 8 characters.'); return; }
+    if (!pw) { setError('New password is required.'); return; }
+    if (pw !== conf) { setError('New passwords do not match.'); return; }
+    if (pw.length < 8) { setError('New password must be at least 8 characters.'); return; }
     setError('');
     
     setSaving(true);
@@ -281,6 +284,23 @@ function SecurityTab() {
       {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
     </button>
   );
+
+  const [sessions, setSessions] = useState<any[]>([]);
+
+  React.useEffect(() => {
+    api.get('/auth/sessions/').then(res => {
+      setSessions(res as any[]);
+    }).catch(console.error);
+  }, []);
+
+  const revokeSession = async (sessionKey: string) => {
+    try {
+      await api.delete(`/auth/sessions/${sessionKey}/`);
+      setSessions(prev => prev.filter(s => s.id !== sessionKey));
+    } catch (e) {
+      console.error('Failed to revoke session', e);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -336,20 +356,21 @@ function SecurityTab() {
           </div>
         </Row>
         <Row label="Session timeout" hint="Automatically log out after inactivity">
-          <Select value={timeout} onChange={setTimeout_} options={[
-            { label: '15 minutes', value: '15' },
-            { label: '30 minutes', value: '30' },
-            { label: '1 hour', value: '60' },
-            { label: '2 hours', value: '120' },
-          ]} />
+          <Select 
+            value={sessionTimeout.toString()} 
+            onChange={(val) => updateSessionTimeout(parseInt(val))} 
+            options={[
+              { label: '15 minutes', value: '15' },
+              { label: '30 minutes', value: '30' },
+              { label: '1 hour', value: '60' },
+              { label: '2 hours', value: '120' },
+            ]} 
+          />
         </Row>
         <Row label="Active sessions" hint="Devices currently signed in" top>
           <div className="space-y-2">
-            {[
-              { device: 'Chrome · macOS', location: 'Manila, PH', current: true, when: 'Now' },
-              { device: 'Firefox · Windows', location: 'Manila, PH', current: false, when: '2 days ago' },
-            ].map((s, i) => (
-              <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
+            {sessions.map((s) => (
+              <div key={s.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
                 <div className="flex items-center gap-3">
                   <Monitor className="h-4 w-4 text-slate-400 shrink-0" />
                   <div>
@@ -361,16 +382,22 @@ function SecurityTab() {
                         </span>
                       )}
                     </p>
-                    <p className="text-xs text-slate-400">{s.location} · {s.when}</p>
+                    <p className="text-xs text-slate-400">{s.location || 'Unknown location'} · {s.when}</p>
                   </div>
                 </div>
                 {!s.current && (
-                  <button className="text-xs font-medium text-red-500 hover:text-red-700 transition-colors">
+                  <button 
+                    onClick={() => revokeSession(s.id)}
+                    className="text-xs font-medium text-red-500 hover:text-red-700 transition-colors"
+                  >
                     Revoke
                   </button>
                 )}
               </div>
             ))}
+            {sessions.length === 0 && (
+              <div className="text-sm text-slate-400 py-2 text-center">Loading sessions...</div>
+            )}
           </div>
         </Row>
       </SectionBlock>
@@ -593,7 +620,12 @@ const TABS: { id: TabId; label: string; icon: React.ElementType; roles: string[]
 
 export function AccountSettings() {
   const { user } = useAuth();
-  const [active, setActive] = useState<TabId>('profile');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const active = (searchParams.get('tab') as TabId) || 'profile';
+  
+  const setActive = (tab: TabId) => {
+    setSearchParams({ tab });
+  };
 
   if (!user) return null;
 

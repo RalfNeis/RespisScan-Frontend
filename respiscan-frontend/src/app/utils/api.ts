@@ -13,10 +13,18 @@ let csrfToken: string | null = null;
 
 async function getCsrfToken(): Promise<string> {
   // Always fetch a fresh token to avoid stale CSRF errors after login/session rotation
-  const res = await fetch(`${API_BASE}/auth/csrf/`, { credentials: 'include' });
-  const data = await res.json();
-  csrfToken = data.csrfToken;
-  return csrfToken as string;
+  try {
+    const res = await fetch(`${API_BASE}/auth/csrf/`, { credentials: 'include' });
+    if (!res.ok) {
+      throw new Error(`Server returned ${res.status}`);
+    }
+    const data = await res.json();
+    csrfToken = data.csrfToken;
+    return csrfToken as string;
+  } catch (error) {
+    console.error("CSRF fetch failed. Is the Django backend running?", error);
+    throw new Error("Cannot connect to backend server. Please make sure the Django server is running.");
+  }
 }
 
 export class ApiError extends Error {

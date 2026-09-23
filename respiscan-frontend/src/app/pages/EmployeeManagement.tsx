@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Plus, Edit2, Trash2, CheckCircle, XCircle } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, CheckCircle, XCircle, X } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -17,13 +17,14 @@ interface Employee {
   title: string;
   department: string;
   license_number: string;
+  bio?: string;
   is_active: boolean;
   date_joined: string;
 }
 
 const EMPTY_FORM = {
   username: '', email: '', first_name: '', last_name: '',
-  role: 'employee', title: '', department: '', license_number: '', password: '',
+  role: 'employee', title: '', department: '', license_number: '', bio: '', password: '',
 };
 
 export function EmployeeManagement() {
@@ -33,6 +34,7 @@ export function EmployeeManagement() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
@@ -122,7 +124,8 @@ export function EmployeeManagement() {
     setFormData({
       username: emp.username, email: emp.email, first_name: emp.first_name,
       last_name: emp.last_name, role: emp.role, title: emp.title,
-      department: emp.department, license_number: emp.license_number || '', password: '',
+      department: emp.department, license_number: emp.license_number || '',
+      bio: emp.bio || '', password: '',
     });
     setError('');
     setShowEditModal(true);
@@ -189,8 +192,13 @@ export function EmployeeManagement() {
                 <tr><td colSpan={7} className="px-6 py-12 text-center text-slate-400">No employees found.</td></tr>
               ) : employees.map((emp) => (
                 <tr key={emp.id} className="hover:bg-slate-50/50 transition-colors bg-white">
-                  <td className="px-6 py-4 font-medium text-slate-900">
-                    {emp.first_name} {emp.last_name}
+                  <td className="px-6 py-4">
+                    <button 
+                      onClick={() => { setSelectedEmployee(emp); setShowProfileModal(true); }}
+                      className="font-medium text-teal-600 hover:text-teal-700 hover:underline flex items-center gap-2 text-left transition-colors"
+                    >
+                      {emp.first_name} {emp.last_name}
+                    </button>
                   </td>
                   <td className="px-6 py-4 text-slate-700">{emp.username}</td>
                   <td className="px-6 py-4 text-slate-700 capitalize">{emp.role}</td>
@@ -296,6 +304,12 @@ export function EmployeeManagement() {
                   placeholder="e.g. 0012345" />
               </div>
               <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Biography / Notes</label>
+                <textarea rows={3} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+                  value={formData.bio} onChange={e => setFormData({ ...formData, bio: e.target.value })} 
+                  placeholder="Short description, qualifications, or notes..." />
+              </div>
+              <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">
                   Password {showEditModal ? '(leave blank to keep current)' : '*'}
                 </label>
@@ -327,6 +341,73 @@ export function EmployeeManagement() {
               <Button className="bg-red-600 hover:bg-red-700" onClick={handleDelete} disabled={saving}>
                 {saving ? 'Processing...' : 'Deactivate'}
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Profile Modal */}
+      {showProfileModal && selectedEmployee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="relative h-32 bg-slate-900 overflow-hidden">
+              <div className="absolute inset-0 opacity-30 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-teal-500 via-slate-900 to-slate-900"></div>
+              <button 
+                onClick={() => { setShowProfileModal(false); setSelectedEmployee(null); }}
+                className="absolute top-4 right-4 text-white/70 hover:text-white bg-black/20 hover:bg-black/40 rounded-full p-1.5 transition-all z-10"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="px-8 pb-8">
+              <div className="-mt-16 mb-4 flex items-end justify-between relative z-10">
+                <div className="h-32 w-32 rounded-full border-4 border-white bg-slate-100 overflow-hidden shadow-lg shrink-0">
+                  <img 
+                    src={selectedEmployee.role === 'admin' 
+                      ? "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkb2N0b3IlMjBwb3J0cmFpdCUyMHByb2Zlc3Npb25hbHxlbnwxfHx8fDE3ODE3OTQzMjB8MA&ixlib=rb-4.1.0&q=80&w=1080" 
+                      : "https://images.unsplash.com/photo-1594824406567-b50e326c07a0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxudXJzZSUyMHBvcnRyYWl0fGVufDB8fHx8MTc4MTc5NDMyMHww&ixlib=rb-4.1.0&q=80&w=1080"} 
+                    alt={selectedEmployee.first_name} 
+                    className="h-full w-full object-cover" 
+                  />
+                </div>
+                <div className="pb-2">
+                  <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                    selectedEmployee.role === 'admin' ? 'bg-purple-100 text-purple-700 border border-purple-200' : 'bg-teal-100 text-teal-700 border border-teal-200'
+                  }`}>
+                    {selectedEmployee.role}
+                  </span>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-2xl font-bold text-slate-900 mb-1">
+                  {selectedEmployee.first_name} {selectedEmployee.last_name}
+                </h3>
+                <p className="text-sm font-medium text-slate-500 mb-6">{selectedEmployee.title || 'Staff Member'}</p>
+                
+                <div className="space-y-4 mb-8">
+                  <div className="flex flex-col">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">Email</span>
+                    <span className="text-sm text-slate-700 mt-0.5">{selectedEmployee.email}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">Department</span>
+                      <span className="text-sm text-slate-700 mt-0.5">{selectedEmployee.department || 'Not assigned'}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">License / ID</span>
+                      <span className="text-sm font-mono text-slate-700 mt-0.5">{selectedEmployee.license_number || 'N/A'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 rounded-xl p-5 border border-slate-100">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wide block mb-3">Biography & Notes</span>
+                  <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">
+                    {selectedEmployee.bio || 'No biography provided for this employee.'}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>

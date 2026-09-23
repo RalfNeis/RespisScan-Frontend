@@ -14,13 +14,24 @@ const navigation = [
 
 export function Layout() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, loading } = useAuth();
 
   useEffect(() => {
-    if (!user) {
+    if (!loading && !user) {
       navigate('/login', { replace: true });
     }
-  }, [user, navigate]);
+  }, [user, loading, navigate]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-slate-500 font-medium flex items-center gap-2">
+          <Activity className="h-5 w-5 animate-pulse text-teal-600" />
+          Loading session...
+        </div>
+      </div>
+    );
+  }
 
   if (!user) return null;
 
@@ -46,6 +57,7 @@ export function Layout() {
               <NavLink
                 key={item.name}
                 to={item.to}
+                end={item.to === '/'}
                 className={({ isActive }) =>
                   cn(
                     'flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors',
@@ -79,7 +91,7 @@ export function Layout() {
           </div>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
           >
             <LogOut className="h-5 w-5" />
             Logout
