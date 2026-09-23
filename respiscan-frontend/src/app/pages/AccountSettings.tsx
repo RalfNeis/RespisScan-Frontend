@@ -125,12 +125,13 @@ function SaveButton({ saved, label = 'Save Changes', onClick }: {
 
 /* ─── tab: Profile ───────────────────────────────────────── */
 
-function ProfileTab({ user }: { user: { first_name: string; last_name: string; username: string; email: string; role: string; title?: string; department?: string; bio?: string } }) {
+function ProfileTab({ user }: { user: { first_name: string; last_name: string; username: string; email: string; role: string; title?: string; department?: string; license_number?: string; bio?: string } }) {
   const [firstName, setFirstName] = useState(user.first_name || '');
   const [lastName, setLastName] = useState(user.last_name || '');
   const [email, setEmail] = useState(user.email || '');
   const [specialty, setSpecialty] = useState(user.title || '');
   const [department, setDepartment] = useState(user.department || '');
+  const [licenseNumber, setLicenseNumber] = useState(user.license_number || '');
   const [bio, setBio] = useState(user.bio || '');
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -144,6 +145,7 @@ function ProfileTab({ user }: { user: { first_name: string; last_name: string; u
         email,
         title: specialty,
         department,
+        license_number: licenseNumber,
         bio
       });
       setSaved(true);
@@ -171,6 +173,9 @@ function ProfileTab({ user }: { user: { first_name: string; last_name: string; u
           <p className="text-sm text-slate-500 capitalize mt-0.5">
             {user.role === 'admin' ? 'Administrator' : 'Employee'} {department && `· ${department}`}
           </p>
+          {licenseNumber && (
+            <p className="text-xs text-slate-400 mt-0.5 font-mono">PRC Lic. {licenseNumber}</p>
+          )}
         </div>
         <span className={cn(
           'px-2.5 py-1 rounded-full text-xs font-semibold',
@@ -195,6 +200,9 @@ function ProfileTab({ user }: { user: { first_name: string; last_name: string; u
         </Row>
         <Row label="Specialty / Title" hint="Your clinical designation or area of focus">
           <TextInput value={specialty} onChange={setSpecialty} placeholder="e.g. Pulmonologist" />
+        </Row>
+        <Row label="PRC License No." hint="Professional Regulation Commission license number">
+          <TextInput value={licenseNumber} onChange={setLicenseNumber} placeholder="e.g. 0012345" />
         </Row>
         <Row label="Department">
           <TextInput value={department} onChange={setDepartment} placeholder="Department name" />

@@ -16,13 +16,14 @@ interface Employee {
   role: string;
   title: string;
   department: string;
+  license_number: string;
   is_active: boolean;
   date_joined: string;
 }
 
 const EMPTY_FORM = {
   username: '', email: '', first_name: '', last_name: '',
-  role: 'employee', title: '', department: '', password: '',
+  role: 'employee', title: '', department: '', license_number: '', password: '',
 };
 
 export function EmployeeManagement() {
@@ -121,7 +122,7 @@ export function EmployeeManagement() {
     setFormData({
       username: emp.username, email: emp.email, first_name: emp.first_name,
       last_name: emp.last_name, role: emp.role, title: emp.title,
-      department: emp.department, password: '',
+      department: emp.department, license_number: emp.license_number || '', password: '',
     });
     setError('');
     setShowEditModal(true);
@@ -176,15 +177,16 @@ export function EmployeeManagement() {
                 <th className="px-6 py-4 font-medium">Username</th>
                 <th className="px-6 py-4 font-medium">Role</th>
                 <th className="px-6 py-4 font-medium">Department</th>
+                <th className="px-6 py-4 font-medium">License No.</th>
                 <th className="px-6 py-4 font-medium">Status</th>
                 <th className="px-6 py-4 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
               {loading ? (
-                <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-400">Loading...</td></tr>
+                <tr><td colSpan={7} className="px-6 py-12 text-center text-slate-400">Loading...</td></tr>
               ) : employees.length === 0 ? (
-                <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-400">No employees found.</td></tr>
+                <tr><td colSpan={7} className="px-6 py-12 text-center text-slate-400">No employees found.</td></tr>
               ) : employees.map((emp) => (
                 <tr key={emp.id} className="hover:bg-slate-50/50 transition-colors bg-white">
                   <td className="px-6 py-4 font-medium text-slate-900">
@@ -193,6 +195,7 @@ export function EmployeeManagement() {
                   <td className="px-6 py-4 text-slate-700">{emp.username}</td>
                   <td className="px-6 py-4 text-slate-700 capitalize">{emp.role}</td>
                   <td className="px-6 py-4 text-slate-700">{emp.department || '—'}</td>
+                  <td className="px-6 py-4 text-slate-700 font-mono text-xs">{emp.license_number || '—'}</td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                       emp.is_active ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-800'
@@ -285,6 +288,12 @@ export function EmployeeManagement() {
                 <input className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                   value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })}
                   placeholder="e.g. Radiologic Technologist" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">PRC License No.</label>
+                <input className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 font-mono"
+                  value={formData.license_number} onChange={e => setFormData({ ...formData, license_number: e.target.value })}
+                  placeholder="e.g. 0012345" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">

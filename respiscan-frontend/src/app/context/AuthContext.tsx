@@ -10,6 +10,7 @@ interface User {
   role: Role;
   title?: string;
   department?: string;
+  license_number?: string;
   bio?: string;
   first_name?: string;
   last_name?: string;

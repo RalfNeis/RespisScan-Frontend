@@ -55,6 +55,13 @@ async function apiFetch(path: string, options: ApiOptions = {}) {
     finalHeaders['X-CSRFToken'] = await getCsrfToken();
   }
 
+  // Prevent browser caching for API GET requests (specifically for filters)
+  if (method === 'GET') {
+    finalHeaders['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+    finalHeaders['Pragma'] = 'no-cache';
+    finalHeaders['Expires'] = '0';
+  }
+
   const res = await fetch(`${API_BASE}${path}`, {
     credentials: 'include',
     headers: finalHeaders,
