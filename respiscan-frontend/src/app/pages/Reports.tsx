@@ -1,14 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Calendar, Download, FileText, Filter, X } from 'lucide-react';
+import { Calendar, Download, FileText, Filter, X, TrendingUp, TrendingDown, AlertTriangle, Info, CheckSquare } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, ComposedChart, Line } from 'recharts';
 import { api } from '../utils/api';
 
 interface AnalyticsData {
-  monthly_trends: { name: string; Scans: number; Positive: number }[];
+  monthly_trends: { name: string; Scans: number; Positive: number; positivity_rate: number }[];
   distribution: { name: string; value: number; color: string }[];
   gender_distribution: { name: string; value: number }[];
+  age_gender_distribution: { range: string; Male: number; Female: number }[];
+  key_findings: { id: string; icon: string; type: string; title: string; description: string }[];
 }
 
 interface ReportRecord {
@@ -26,7 +28,14 @@ export function Reports() {
   const [loading, setLoading] = useState(true);
   const [reports, setReports] = useState<ReportRecord[]>([]);
   const [reportsLoading, setReportsLoading] = useState(true);
+  
+  // Custom Export Modal
+  const [showExportModal, setShowExportModal] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportConfig, setExportConfig] = useState({ demo: true, trends: true, ai: true });
+
+  // Drill-down State
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
 
   // Filter state
   const [gender, setGender] = useState('');
@@ -82,33 +91,14 @@ export function Reports() {
   const handleExport = async () => {
     setExporting(true);
     try {
-      const response = await fetch('/api/reports/generate/', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': await getCsrfToken(),
-        },
-        body: JSON.stringify({
-          date_range_start: startDate,
-          date_range_end: endDate,
-        }),
+      // For simplicity, we use api.post which handles the CSRF token automatically.
+      await api.post('/reports/generate/', {
+        date_range_start: startDate,
+        date_range_end: endDate,
+        config: exportConfig
       });
-
-      if (!response.ok) throw new Error('Export failed');
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `respiscan_analytics_${startDate}_${endDate}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-
-      // Refresh the report history
       fetchReports();
+      setShowExportModal(false);
     } catch (err) {
       console.error('Export failed', err);
     } finally {
@@ -118,10 +108,13 @@ export function Reports() {
 
   const barData = data?.monthly_trends ?? [];
   const pieData = data?.distribution ?? [];
-  const genderDist = data?.gender_distribution ?? [];
-
-  const maleCount = genderDist.find(g => g.name === 'Male')?.value ?? 0;
-  const femaleCount = genderDist.find(g => g.name === 'Female')?.value ?? 0;
+  const stackedDemographics = data?.age_gender_distribution ?? [];
+  const keyFindings = data?.key_findings ?? [];
+  
+  // Filter reports if a month is clicked
+  const filteredReports = selectedMonth 
+    ? reports.filter(r => new Date(r.generated_at).toLocaleString('en-US', { month: 'short' }) === selectedMonth)
+    : reports;
 
   return (
     <div className="space-y-6">
@@ -170,7 +163,7 @@ export function Reports() {
             <span className="text-slate-400">to</span>
             <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
               className="px-2 py-1.5 text-sm border-none bg-transparent text-slate-700 focus:outline-none" />
-            <Button size="sm" className="gap-2 ml-2" onClick={handleExport} disabled={exporting}>
+            <Button size="sm" className="gap-2 ml-2" onClick={() => setShowExportModal(true)} disabled={exporting}>
               <Download className="h-4 w-4" />
               {exporting ? 'Exporting...' : 'Export PDF'}
             </Button>
@@ -184,22 +177,29 @@ export function Reports() {
         <>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle>Diagnosis Trends</CardTitle>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Diagnosis Trends {selectedMonth ? `(${selectedMonth})` : ''}</CardTitle>
+                {selectedMonth && (
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedMonth(null)} className="h-8 text-xs text-slate-500 hover:text-slate-900">
+                    Clear Selection
+                  </Button>
+                )}
               </CardHeader>
               <CardContent>
                 <div className="h-[350px] w-full">
                   {barData.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={barData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                      <ComposedChart data={barData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} />
+                        <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} />
+                        <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} tickFormatter={(val) => `${val}%`} />
                         <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                         <Legend iconType="circle" />
-                        <Bar dataKey="Scans" fill="#0D9488" radius={[4, 4, 0, 0]} />
-                        <Bar dataKey="Positive" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                      </BarChart>
+                        <Bar yAxisId="left" dataKey="Scans" fill="#0D9488" radius={[4, 4, 0, 0]} onClick={(data) => setSelectedMonth(data?.name)} className="cursor-pointer" />
+                        <Bar yAxisId="left" dataKey="Positive" fill="#ef4444" radius={[4, 4, 0, 0]} onClick={(data) => setSelectedMonth(data?.name)} className="cursor-pointer" />
+                        <Line yAxisId="right" type="monotone" dataKey="positivity_rate" name="Positivity %" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} />
+                      </ComposedChart>
                     </ResponsiveContainer>
                   ) : (
                     <div className="h-full flex items-center justify-center text-slate-400">No data yet</div>
@@ -252,40 +252,61 @@ export function Reports() {
             </Card>
           </div>
 
-          {/* ── Gender Distribution ────────────────────────────── */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="shadow-sm">
-              <CardContent className="p-6">
-                <p className="text-sm font-medium text-slate-500 uppercase tracking-wider mb-1">Male Patients</p>
-                <p className="text-4xl font-bold text-slate-900">{maleCount.toLocaleString()}</p>
-                <div className="mt-3 h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-slate-700 rounded-full transition-all duration-500"
-                    style={{ width: `${(maleCount + femaleCount) > 0 ? (maleCount / (maleCount + femaleCount)) * 100 : 0}%` }}
-                  />
+          {/* ── Stacked Demographics & Key Findings ────────────────────── */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle>Demographics (Age & Gender)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px] w-full">
+                  {stackedDemographics.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={stackedDemographics} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                        <XAxis dataKey="range" axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} />
+                        <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                        <Legend iconType="circle" />
+                        <Bar dataKey="Male" stackId="a" fill="#0ea5e9" radius={[0, 0, 0, 0]} name="Male Cases" />
+                        <Bar dataKey="Female" stackId="a" fill="#db2777" radius={[4, 4, 0, 0]} name="Female Cases" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-slate-400">No data yet</div>
+                  )}
                 </div>
-                <p className="text-xs text-slate-400 mt-1.5">
-                  {(maleCount + femaleCount) > 0
-                    ? `${((maleCount / (maleCount + femaleCount)) * 100).toFixed(1)}% of total patients`
-                    : '—'}
-                </p>
               </CardContent>
             </Card>
+            
             <Card className="shadow-sm">
-              <CardContent className="p-6">
-                <p className="text-sm font-medium text-slate-500 uppercase tracking-wider mb-1">Female Patients</p>
-                <p className="text-4xl font-bold text-slate-900">{femaleCount.toLocaleString()}</p>
-                <div className="mt-3 h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-teal-600 rounded-full transition-all duration-500"
-                    style={{ width: `${(maleCount + femaleCount) > 0 ? (femaleCount / (maleCount + femaleCount)) * 100 : 0}%` }}
-                  />
-                </div>
-                <p className="text-xs text-slate-400 mt-1.5">
-                  {(maleCount + femaleCount) > 0
-                    ? `${((femaleCount / (maleCount + femaleCount)) * 100).toFixed(1)}% of total patients`
-                    : '—'}
-                </p>
+              <CardHeader>
+                <CardTitle>Key Findings</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {keyFindings.length > 0 ? (
+                  keyFindings.map(finding => {
+                    let Icon = Info;
+                    let colorClass = 'text-blue-500 bg-blue-50';
+                    if (finding.icon === 'TrendingUp') { Icon = TrendingUp; colorClass = 'text-slate-700 bg-slate-100'; }
+                    if (finding.icon === 'TrendingDown') { Icon = TrendingDown; colorClass = 'text-teal-600 bg-teal-50'; }
+                    if (finding.icon === 'AlertTriangle') { Icon = AlertTriangle; colorClass = 'text-amber-500 bg-amber-50'; }
+                    
+                    return (
+                      <div key={finding.id} className="flex gap-3 items-start border-b border-slate-100 pb-4 last:border-0 last:pb-0">
+                        <div className={`p-2 rounded-lg mt-0.5 ${colorClass}`}>
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-slate-800">{finding.title}</p>
+                          <p className="text-sm text-slate-500 mt-1">{finding.description}</p>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-sm text-slate-500 text-center py-4">No significant findings detected.</div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -295,14 +316,14 @@ export function Reports() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5 text-slate-400" />
-                Generated System Reports
+                Generated System Reports {selectedMonth ? `for ${selectedMonth}` : ''}
               </CardTitle>
             </CardHeader>
             <CardContent>
               {reportsLoading ? (
                 <p className="text-sm text-slate-400 py-4">Loading report history...</p>
-              ) : reports.length === 0 ? (
-                <p className="text-sm text-slate-400 py-4">No reports generated yet. Use the "Export PDF" button above to generate your first report.</p>
+              ) : filteredReports.length === 0 ? (
+                <p className="text-sm text-slate-400 py-4">No reports generated yet{selectedMonth ? ` for ${selectedMonth}` : ''}. Use the "Export PDF" button above to generate a report.</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm text-left">
@@ -316,7 +337,7 @@ export function Reports() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {reports.map((r) => (
+                      {filteredReports.map((r) => (
                         <tr key={r.id} className="hover:bg-slate-50/50">
                           <td className="py-3 pr-6 font-medium text-slate-900">{r.title}</td>
                           <td className="py-3 pr-6 text-slate-600 capitalize">{r.report_type}</td>
@@ -337,13 +358,45 @@ export function Reports() {
           </Card>
         </>
       )}
+
+      {/* Export Report Modal */}
+      {showExportModal && (
+        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><CheckSquare className="h-5 w-5 text-teal-600" /> Export Analytics Report</h3>
+              <button onClick={() => setShowExportModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-5">
+              <div className="space-y-3">
+                <label className="text-sm font-semibold text-slate-700 block mb-3">Include Sections in PDF:</label>
+                <div className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded">
+                  <input type="checkbox" id="inc-demo" checked={exportConfig.demo} onChange={e => setExportConfig(p => ({...p, demo: e.target.checked}))} className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500" />
+                  <label htmlFor="inc-demo" className="text-sm font-medium text-slate-700 cursor-pointer select-none">Demographics (Age & Gender)</label>
+                </div>
+                <div className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded">
+                  <input type="checkbox" id="inc-trends" checked={exportConfig.trends} onChange={e => setExportConfig(p => ({...p, trends: e.target.checked}))} className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500" />
+                  <label htmlFor="inc-trends" className="text-sm font-medium text-slate-700 cursor-pointer select-none">Monthly Trends & Growth</label>
+                </div>
+                <div className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded">
+                  <input type="checkbox" id="inc-ai" checked={exportConfig.ai} onChange={e => setExportConfig(p => ({...p, ai: e.target.checked}))} className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500" />
+                  <label htmlFor="inc-ai" className="text-sm font-medium text-slate-700 cursor-pointer select-none">AI Confidence Scores</label>
+                </div>
+              </div>
+            </div>
+            
+            <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3 bg-slate-50">
+              <Button variant="ghost" onClick={() => setShowExportModal(false)} className="text-slate-600 hover:text-slate-900">Cancel</Button>
+              <Button onClick={handleExport} disabled={exporting}>
+                {exporting ? 'Generating...' : 'Generate PDF'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
-}
-
-// Helper to get CSRF token for the raw fetch call
-async function getCsrfToken(): Promise<string> {
-  const res = await fetch('/api/auth/csrf/', { credentials: 'include' });
-  const data = await res.json();
-  return data.csrfToken;
 }
