@@ -194,7 +194,7 @@ export function EmployeeManagement() {
                 <tr key={emp.id} className="hover:bg-slate-50/50 transition-colors bg-white">
                   <td className="px-6 py-4">
                     <button 
-                      onClick={() => { setSelectedEmployee(emp); setShowProfileModal(true); }}
+                      onClick={() => navigate('/profile/' + emp.id)}
                       className="font-medium text-teal-600 hover:text-teal-700 hover:underline flex items-center gap-2 text-left transition-colors"
                     >
                       {emp.first_name} {emp.last_name}

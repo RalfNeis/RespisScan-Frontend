@@ -10,6 +10,7 @@ import { Diagnosis } from './pages/Diagnosis';
 import { Reports } from './pages/Reports';
 import { RegisterPatient } from './pages/RegisterPatient';
 import { AccountSettings } from './pages/AccountSettings';
+import { DoctorProfile } from './pages/DoctorProfile';
 
 export const router = createBrowserRouter([
   {
@@ -28,6 +29,7 @@ export const router = createBrowserRouter([
       { path: 'reports', Component: Reports },
       { path: 'patients/new', Component: RegisterPatient },
       { path: 'settings', Component: AccountSettings },
+      { path: 'profile/:id', Component: DoctorProfile },
     ],
   },
   {

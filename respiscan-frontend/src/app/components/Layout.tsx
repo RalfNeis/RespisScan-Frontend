@@ -74,12 +74,14 @@ export function Layout() {
           })}
         </nav>
         <div className="p-4 border-t border-slate-800">
-          <div className="flex items-center gap-3 mb-4 px-2">
+          <div 
+            onClick={() => navigate('/profile/' + user.id)}
+            className="flex items-center gap-3 mb-4 px-2 cursor-pointer hover:bg-slate-800 p-2 -mx-2 rounded-md transition-colors"
+            title="View Profile"
+          >
             <div className="h-9 w-9 rounded-full bg-slate-700 overflow-hidden">
               <img 
-                src={user.role === 'admin' 
-                  ? "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkb2N0b3IlMjBwb3J0cmFpdCUyMHByb2Zlc3Npb25hbHxlbnwxfHx8fDE3ODE3OTQzMjB8MA&ixlib=rb-4.1.0&q=80&w=1080" 
-                  : "https://images.unsplash.com/photo-1594824406567-b50e326c07a0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxudXJzZSUyMHBvcnRyYWl0fGVufDB8fHx8MTc4MTc5NDMyMHww&ixlib=rb-4.1.0&q=80&w=1080"} 
+                src={`https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=0D8ABC&color=fff&size=64`}
                 alt={displayName} 
                 className="h-full w-full object-cover" 
               />
