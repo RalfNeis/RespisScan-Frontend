@@ -11,6 +11,9 @@ export function Diagnosis() {
   const [patientId, setPatientId] = useState('');
   const [patients, setPatients] = useState<{ id: number; patient_id: string; name: string }[]>([]);
   const [currentScanId, setCurrentScanId] = useState<number | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [recentScans, setRecentScans] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -24,6 +27,25 @@ export function Diagnosis() {
       })
       .catch(() => {});
   }, []);
+
+  // Fetch recent scans when patient changes
+  useEffect(() => {
+    if (!patientId) {
+       setRecentScans([]);
+       return;
+    }
+    const patient = patients.find(p => String(p.id) === patientId);
+    if (patient) {
+      setSearchTerm(`${patient.name} (${patient.patient_id})`);
+    }
+    
+    api.get(`/diagnostics/scans/?patient__id=${patientId}`)
+      .then((res: any) => {
+        const scans = Array.isArray(res) ? res : res.results ?? [];
+        setRecentScans(scans.slice(0, 3));
+      })
+      .catch(() => setRecentScans([]));
+  }, [patientId, patients]);
 
   // Clean up polling on unmount
   useEffect(() => {
@@ -102,6 +124,17 @@ export function Diagnosis() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+
+  const filteredPatients = patients
+    .filter(p => {
+      if (!searchTerm) return true;
+      const term = searchTerm.toLowerCase();
+      const idMatches = p.patient_id.toLowerCase().startsWith(term);
+      const nameMatches = p.name.toLowerCase().startsWith(term);
+      return idMatches || nameMatches;
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+
   return (
     <div className="space-y-6 h-full flex flex-col">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -110,18 +143,56 @@ export function Diagnosis() {
           <p className="text-slate-500">DenseNet-121 / Grad-CAM Pneumonia Detection</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="bg-slate-100 px-4 py-2 rounded-md border border-slate-200 flex items-center gap-2">
-            <span className="text-sm text-slate-500">Patient:</span>
-            <select
-              value={patientId}
-              onChange={(e) => setPatientId(e.target.value)}
-              className="bg-transparent font-medium text-slate-900 outline-none text-sm"
-            >
-              {patients.length === 0 && <option value="">No patients registered</option>}
-              {patients.map((p) => (
-                <option key={p.id} value={p.id}>{p.name} ({p.patient_id})</option>
-              ))}
-            </select>
+          <div className="flex flex-col relative">
+            <div className="bg-slate-100 px-4 py-2 rounded-md border border-slate-200 flex items-center gap-2 relative">
+              <span className="text-sm text-slate-500">Patient:</span>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setIsDropdownOpen(true);
+                  }}
+                  onFocus={(e) => { setIsDropdownOpen(true); e.target.select(); }}
+                  onBlur={() => setTimeout(() => setIsDropdownOpen(false), 200)}
+                  placeholder="Search patient..."
+                  className="bg-transparent font-medium text-slate-900 outline-none text-sm w-48"
+                />
+                {isDropdownOpen && (
+                  <div className="absolute top-full left-0 mt-1 w-[250px] bg-white border border-slate-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
+                      {filteredPatients.length === 0 ? (
+                      <div className="px-3 py-2 text-sm text-slate-500">No patients found</div>
+                    ) : (
+                        filteredPatients.map((p) => (
+                        <div
+                          key={p.id}
+                          className="px-3 py-2 text-sm hover:bg-slate-100 cursor-pointer"
+                          onClick={() => {
+                            setPatientId(String(p.id));
+                            setSearchTerm(`${p.name} (${p.patient_id})`);
+                            setIsDropdownOpen(false);
+                          }}
+                        >
+                          <div className="font-medium text-slate-900">{p.name}</div>
+                          <div className="text-xs text-slate-500">{p.patient_id}</div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+            {recentScans.length > 0 && !isDropdownOpen && (
+              <div className="absolute top-full left-0 mt-1 text-[10px] text-slate-500 flex gap-1 items-center z-40 bg-white/80 backdrop-blur border border-slate-200 px-2 py-1 rounded shadow-sm">
+                <span className="font-medium">Recent:</span>
+                {recentScans.map((scan, i) => (
+                  <span key={scan.id || i} className={`px-1 rounded-[3px] ${scan.status === 'Positive' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                    {scan.status === 'Positive' ? 'Pos' : 'Neg'}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
           <Button variant="outline" onClick={handleReset}>
             <RefreshCw className="h-4 w-4 mr-2" /> Reset

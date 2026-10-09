@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import {
   LineChart, Line, BarChart, Bar,
@@ -21,6 +22,7 @@ interface DashboardData {
 }
 
 export function Dashboard() {
+  const navigate = useNavigate();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -206,6 +208,31 @@ export function Dashboard() {
             {/* Left Column (Charts) */}
             <div className="xl:col-span-2 space-y-6">
               
+              {/* Weekly Scan Activity */}
+              <Card className="shadow-sm border-slate-200">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base font-semibold text-slate-800">Weekly Scan Activity</CardTitle>
+                  <p className="text-xs text-slate-400 mt-0.5">Volume of scans processed over the last 7 days</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[240px] w-full mt-4">
+                    {chartData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} dy={10} />
+                          <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} />
+                          <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                          <Line type="monotone" dataKey="scans" stroke="#14b8a6" strokeWidth={3} dot={false} activeDot={{ r: 6, fill: '#14b8a6', strokeWidth: 2, stroke: '#fff' }} name="Total Scans" />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-full flex items-center justify-center text-slate-400">No scan activity yet</div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* Age Range Chart */}
               <Card className="shadow-sm border-slate-200">
                 <CardHeader className="pb-2">
@@ -239,31 +266,6 @@ export function Dashboard() {
                 </CardContent>
               </Card>
 
-              {/* Weekly Scan Activity */}
-              <Card className="shadow-sm border-slate-200">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base font-semibold text-slate-800">Weekly Scan Activity</CardTitle>
-                  <p className="text-xs text-slate-400 mt-0.5">Volume of scans processed over the last 7 days</p>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[240px] w-full mt-4">
-                    {chartData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} dy={10} />
-                          <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} />
-                          <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                          <Line type="monotone" dataKey="scans" stroke="#14b8a6" strokeWidth={3} dot={false} activeDot={{ r: 6, fill: '#14b8a6', strokeWidth: 2, stroke: '#fff' }} name="Total Scans" />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className="h-full flex items-center justify-center text-slate-400">No scan activity yet</div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
             </div>
 
             {/* Right Column (Activity Feed) */}
@@ -272,7 +274,7 @@ export function Dashboard() {
                 <div>
                   <CardTitle className="text-base font-semibold text-slate-800">Recent Activity</CardTitle>
                 </div>
-                <button className="text-xs font-medium text-teal-600 hover:text-teal-700">View All</button>
+                <button onClick={() => navigate('/scan-history')} className="text-xs font-medium text-teal-600 hover:text-teal-700">View All</button>
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
