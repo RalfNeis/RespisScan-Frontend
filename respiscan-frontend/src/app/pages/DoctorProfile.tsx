@@ -95,7 +95,7 @@ export function DoctorProfile() {
                   Edit Profile
                 </Button>
               ) : (
-                <Button variant="outline">
+                <Button variant="outline" onClick={() => navigate('/scan-history?uploaded_by=' + profile.id)}>
                   View Records
                 </Button>
               )}

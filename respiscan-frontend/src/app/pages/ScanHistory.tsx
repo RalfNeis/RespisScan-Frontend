@@ -40,6 +40,8 @@ export function ScanHistory() {
     const params = new URLSearchParams();
     if (searchTerm) params.append('search', searchTerm);
     if (statusFilter) params.append('diagnosis__detection_result', statusFilter);
+    const uploadedBy = searchParams.get('uploaded_by');
+    if (uploadedBy) params.append('uploaded_by', uploadedBy);
     params.append('page', page.toString());
     
     api.get(`/diagnostics/scans/?${params.toString()}`)
