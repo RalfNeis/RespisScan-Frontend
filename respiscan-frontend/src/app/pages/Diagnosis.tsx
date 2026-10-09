@@ -275,19 +275,9 @@ export function Diagnosis() {
                     <span className="text-teal-400 flex items-center gap-1"><CheckCircle className="h-3 w-3" /> Processed</span>
                   </div>
                   <div className="flex-1 bg-black rounded-b-md overflow-hidden relative border border-slate-700 group">
-                    {/* Background original image for context */}
-                    <img 
-                      src={scanResult?.original_image_url || ''} 
-                      alt="Background Context" 
-                      className="absolute inset-0 w-full h-full object-contain opacity-50 mix-blend-luminosity grayscale"
-                    />
                     {/* Heatmap overlay returned from Supabase */}
-                    <img 
-                      src={scanResult?.heatmap_image_url || ''} 
-                      alt="Grad-CAM Overlay" 
-                      className="absolute inset-0 w-full h-full object-cover mix-blend-color-dodge opacity-70"
-                    />
-                  </div>
+                      <img src={scanResult?.heatmap_image_url || ''} alt="Grad-CAM Overlay" className="absolute inset-0 w-full h-full object-contain" />
+                    </div>
                 </div>
               </>
             )}
