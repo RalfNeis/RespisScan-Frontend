@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit2, Trash2, FileText, Filter, ChevronDown, User, Phone, MapPin, HeartPulse, AlertCircle, UserCheck, Check, X } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, FileText, Filter, ChevronDown, User, Phone, MapPin, HeartPulse, AlertCircle, UserCheck, Check, X, ZoomIn, ImageIcon } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card } from '../components/ui/card';
@@ -126,6 +126,7 @@ export function PatientRecords() {
   const [selectedPatientForScans, setSelectedPatientForScans] = useState<Patient | null>(null);
   const [patientScans, setPatientScans] = useState<any[]>([]);
   const [scansLoading, setScansLoading] = useState(false);
+  const [previewImage, setPreviewImage] = useState<{ url: string; title: string } | null>(null);
 
   const navigate = useNavigate();
 
@@ -136,6 +137,7 @@ export function PatientRecords() {
     if (genderFilter) params.append('gender', genderFilter);
     if (ageMin) params.append('age_min', ageMin);
     if (ageMax) params.append('age_max', ageMax);
+    params.append('ordering', 'name');
     params.append('page', currentPage.toString());
 
     const qs = params.toString();
@@ -275,14 +277,34 @@ export function PatientRecords() {
     setScansLoading(true);
     setPatientScans([]);
     try {
-      const res: any = await api.get(`/diagnostics/scans/?patient__id=${pt.id}`);
-      setPatientScans(Array.isArray(res) ? res : res.results ?? []);
-    } catch (err) {
-      console.error(err);
+      const res: any = await api.get(`/patients/${pt.id}/history/`);
+      if (res && res.scans) {
+        setPatientScans(res.scans);
+      } else {
+        const fallback: any = await api.get(`/diagnostics/scans/?patient__id=${pt.id}`);
+        setPatientScans(Array.isArray(fallback) ? fallback : fallback.results ?? []);
+      }
+    } catch {
+      try {
+        const fallback: any = await api.get(`/diagnostics/scans/?patient__id=${pt.id}`);
+        setPatientScans(Array.isArray(fallback) ? fallback : fallback.results ?? []);
+      } catch {
+        setPatientScans([]);
+      }
     } finally {
       setScansLoading(false);
     }
   };
+
+  const sortedAndFilteredPatients = patients
+    .filter((pt) => {
+      if (!searchTerm) return true;
+      const term = searchTerm.toLowerCase();
+      const idMatches = pt.patient_id.toLowerCase().startsWith(term);
+      const nameMatches = pt.name.toLowerCase().startsWith(term);
+      return idMatches || nameMatches;
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <div className="space-y-6">
@@ -377,9 +399,9 @@ export function PatientRecords() {
             <tbody className="divide-y divide-slate-200">
               {loading ? (
                 <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-400">Loading...</td></tr>
-              ) : patients.length === 0 ? (
+              ) : sortedAndFilteredPatients.length === 0 ? (
                 <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-400">No patients found. Register your first patient to get started.</td></tr>
-              ) : patients.map((pt) => (
+              ) : sortedAndFilteredPatients.map((pt) => (
                 <tr key={pt.id} className="hover:bg-slate-50/50 transition-colors bg-white">
                   <td className="px-6 py-4 font-medium text-slate-900">{pt.patient_id}</td>
                   <td className="px-6 py-4 text-slate-700">
@@ -400,7 +422,12 @@ export function PatientRecords() {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="sm" className="h-8 px-2 text-teal-600 hover:text-teal-700 hover:bg-teal-50" onClick={() => navigate('/diagnosis')}>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-8 px-2 text-teal-600 hover:text-teal-700 hover:bg-teal-50" 
+                        onClick={() => navigate('/diagnosis', { state: { selectedPatientId: pt.id, selectedPatientName: pt.name, patientCode: pt.patient_id } })}
+                      >
                         <FileText className="h-4 w-4 mr-1" /> Scan
                       </Button>
                       <button onClick={() => openEditModal(pt)} title="Edit"
@@ -447,54 +474,198 @@ export function PatientRecords() {
 
       {/* Patient Scan History Modal */}
       {showScanHistory && selectedPatientForScans && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-            <div className="p-6 border-b border-slate-200 flex justify-between items-center shrink-0">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="p-6 border-b border-slate-200 flex justify-between items-center shrink-0 bg-slate-50/50">
               <div>
-                <h3 className="text-lg font-semibold text-slate-900">Scan History</h3>
-                <p className="text-sm text-slate-500 mt-1">Past scans for {selectedPatientForScans.name} ({selectedPatientForScans.patient_id})</p>
+                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <HeartPulse className="h-5 w-5 text-teal-600" />
+                  Historical Scans & Heatmaps
+                </h3>
+                <p className="text-sm text-slate-500 mt-0.5">
+                  Showing historical AI diagnostics for <span className="font-semibold text-slate-700">{selectedPatientForScans.name}</span> ({selectedPatientForScans.patient_id})
+                </p>
               </div>
-              <button onClick={() => setShowScanHistory(false)} className="text-slate-400 hover:text-slate-600">
+              <button 
+                onClick={() => setShowScanHistory(false)} 
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              >
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="p-0 overflow-y-auto flex-1">
+
+            <div className="p-6 overflow-y-auto flex-1 space-y-6">
               {scansLoading ? (
-                <div className="p-12 text-center text-slate-500">Loading scans...</div>
+                <div className="py-16 text-center text-slate-500 flex flex-col items-center justify-center gap-3">
+                  <div className="h-8 w-8 rounded-full border-2 border-teal-600 border-t-transparent animate-spin" />
+                  <p className="text-sm">Loading historical scans from secure storage...</p>
+                </div>
               ) : patientScans.length === 0 ? (
-                <div className="p-12 text-center text-slate-500">No scan history found for this patient.</div>
+                <div className="py-16 text-center text-slate-500">
+                  <ImageIcon className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                  <p className="font-medium text-slate-700">No scan history found for this patient.</p>
+                  <p className="text-xs text-slate-400 mt-1">Upload and analyze a chest X-ray in Diagnose CXR to generate their first report.</p>
+                </div>
               ) : (
-                <table className="w-full text-sm text-left">
-                  <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-200">
-                    <tr>
-                      <th className="px-6 py-4 font-medium">Date</th>
-                      <th className="px-6 py-4 font-medium">Status</th>
-                      <th className="px-6 py-4 font-medium">Findings</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200">
-                    {patientScans.map((scan: any) => (
-                      <tr key={scan.id} className="hover:bg-slate-50/50 bg-white">
-                        <td className="px-6 py-4 text-slate-700">{new Date(scan.created_at).toLocaleString()}</td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            scan.status === 'Positive' ? 'bg-red-100 text-red-800' :
-                            scan.status === 'Negative' ? 'bg-green-100 text-green-800' :
-                            'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {scan.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-slate-700 line-clamp-2 max-w-xs" title={scan.findings}>{scan.findings || 'No findings'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div className="space-y-6">
+                  {patientScans.map((scan: any, idx: number) => {
+                    const scanDate = scan.upload_timestamp || scan.created_at || scan.diagnosis_date;
+                    const confidencePercent = scan.confidence !== null && scan.confidence !== undefined
+                      ? (scan.confidence <= 1 ? (scan.confidence * 100).toFixed(1) : Number(scan.confidence).toFixed(1)) + '%'
+                      : null;
+
+                    return (
+                      <div key={scan.scan_id || scan.id || idx} className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+                        {/* Scan Card Header */}
+                        <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <span className="font-semibold text-slate-900 text-sm">
+                              Scan #{scan.scan_id || scan.id || idx + 1}
+                            </span>
+                            <span className="text-xs text-slate-500">
+                              {scanDate ? new Date(scanDate).toLocaleString() : 'Date N/A'}
+                            </span>
+                            {scan.uploaded_by && (
+                              <span className="text-xs text-slate-400">
+                                • Uploaded by: {scan.uploaded_by}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {confidencePercent && (
+                              <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                                {confidencePercent} Confidence
+                              </span>
+                            )}
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                              scan.status === 'Positive' ? 'bg-red-100 text-red-700 border border-red-200' :
+                              scan.status === 'Negative' ? 'bg-green-100 text-green-700 border border-green-200' :
+                              'bg-amber-100 text-amber-700 border border-amber-200'
+                            }`}>
+                              {scan.status || 'Pending'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Images Grid */}
+                        <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Original CXR */}
+                          <div className="space-y-1.5">
+                            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide flex items-center justify-between">
+                              <span>Original Chest X-Ray</span>
+                              {scan.original_image_url && (
+                                <span className="text-[11px] text-teal-600 lowercase font-normal flex items-center gap-0.5">
+                                  <ZoomIn className="h-3 w-3" /> click to expand
+                                </span>
+                              )}
+                            </p>
+                            <div 
+                              onClick={() => scan.original_image_url && setPreviewImage({ url: scan.original_image_url, title: `Original Chest X-Ray - ${selectedPatientForScans.name}` })}
+                              className={`h-56 rounded-lg border border-slate-200 bg-slate-950 flex items-center justify-center overflow-hidden relative group ${scan.original_image_url ? 'cursor-pointer' : ''}`}
+                            >
+                              {scan.original_image_url ? (
+                                <>
+                                  <img 
+                                    src={scan.original_image_url} 
+                                    alt="Original CXR" 
+                                    onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                                    className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-200" 
+                                  />
+                                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-medium gap-1.5">
+                                    <ZoomIn className="h-4 w-4" /> Expand Image
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="text-center text-slate-500 p-4">
+                                  <ImageIcon className="h-8 w-8 mx-auto mb-1 text-slate-600" />
+                                  <p className="text-xs">Original image not available</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Grad-CAM Heatmap */}
+                          <div className="space-y-1.5">
+                            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide flex items-center justify-between">
+                              <span>Grad-CAM AI Heatmap</span>
+                              {scan.heatmap_image_url && (
+                                <span className="text-[11px] text-teal-600 lowercase font-normal flex items-center gap-0.5">
+                                  <ZoomIn className="h-3 w-3" /> click to expand
+                                </span>
+                              )}
+                            </p>
+                            <div 
+                              onClick={() => scan.heatmap_image_url && setPreviewImage({ url: scan.heatmap_image_url, title: `Grad-CAM Pneumonia Heatmap - ${selectedPatientForScans.name}` })}
+                              className={`h-56 rounded-lg border border-slate-200 bg-slate-950 flex items-center justify-center overflow-hidden relative group ${scan.heatmap_image_url ? 'cursor-pointer' : ''}`}
+                            >
+                              {scan.heatmap_image_url ? (
+                                <>
+                                  <img 
+                                    src={scan.heatmap_image_url} 
+                                    alt="Grad-CAM Heatmap" 
+                                    onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                                    className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-200" 
+                                  />
+                                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-medium gap-1.5">
+                                    <ZoomIn className="h-4 w-4" /> Expand Heatmap
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="text-center text-slate-500 p-4">
+                                  <HeartPulse className="h-8 w-8 mx-auto mb-1 text-slate-600" />
+                                  <p className="text-xs font-medium text-slate-400">Heatmap overlay not generated</p>
+                                  <p className="text-[11px] text-slate-600 mt-0.5">
+                                    {scan.status === 'Negative' ? 'No activation regions detected' : 'Inference pending or unavailable'}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Findings / Radiologist Notes */}
+                        {(scan.radiologist_notes || scan.findings) && (
+                          <div className="px-4 pb-4 pt-1 border-t border-slate-100 bg-slate-50/30 text-xs">
+                            <p className="font-semibold text-slate-700">Radiologist Notes / Findings:</p>
+                            <p className="text-slate-600 mt-0.5 whitespace-pre-wrap">{scan.radiologist_notes || scan.findings}</p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
-            <div className="p-4 border-t border-slate-200 flex justify-end shrink-0">
+
+            <div className="p-4 border-t border-slate-200 flex justify-end shrink-0 bg-slate-50/50">
               <Button onClick={() => setShowScanHistory(false)}>Close</Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lightbox Zoom Modal */}
+      {previewImage && (
+        <div 
+          onClick={() => setPreviewImage(null)}
+          className="fixed inset-0 z-60 bg-black/85 backdrop-blur-md flex flex-col items-center justify-center p-4 cursor-zoom-out animate-in fade-in duration-150"
+        >
+          <div className="w-full max-w-4xl flex items-center justify-between text-white pb-3 px-2">
+            <p className="font-medium text-sm">{previewImage.title}</p>
+            <button 
+              onClick={(e) => { e.stopPropagation(); setPreviewImage(null); }}
+              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <div className="max-h-[82vh] max-w-[90vw] flex items-center justify-center overflow-hidden rounded-xl border border-white/10 shadow-2xl bg-black">
+            <img 
+              src={previewImage.url} 
+              alt={previewImage.title} 
+              className="max-h-[82vh] max-w-[90vw] object-contain" 
+              onClick={(e) => e.stopPropagation()}
+            />
           </div>
         </div>
       )}

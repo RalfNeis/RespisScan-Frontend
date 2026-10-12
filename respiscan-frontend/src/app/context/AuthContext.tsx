@@ -14,6 +14,7 @@ interface User {
   bio?: string;
   first_name?: string;
   last_name?: string;
+  avatar_url?: string;
 }
 
 interface LoginResult {
@@ -30,6 +31,7 @@ interface AuthContextType {
   login: (username: string, password: string, role: Role, otpToken?: string, rememberMe?: boolean) => Promise<LoginResult>;
   logout: () => Promise<void>;
   clearSessionExpired: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -70,8 +72,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Initial check on load
     checkSession(true);
 
-    // Poll every 3 seconds for near-instant remote revocation
-    const intervalId = setInterval(() => checkSession(false), 3000);
+    // Poll every 10 seconds for session validity
+    const intervalId = setInterval(() => checkSession(false), 10000);
     
     // Also check immediately if they switch back to this tab
     const handleFocus = () => checkSession(false);
@@ -166,10 +168,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const clearSessionExpired = () => setSessionExpired(false);
 
+  const refreshUser = async () => {
+    try {
+      const data = await api.get('/auth/me/');
+      setUser(normalizeUser(data));
+    } catch {
+      // ignore
+    }
+  };
+
   return (
     <AuthContext.Provider value={{ 
       user, loading, sessionExpired, sessionTimeout, updateSessionTimeout, 
-      login, logout, clearSessionExpired 
+      login, logout, clearSessionExpired, refreshUser 
     }}>
       {children}
     </AuthContext.Provider>

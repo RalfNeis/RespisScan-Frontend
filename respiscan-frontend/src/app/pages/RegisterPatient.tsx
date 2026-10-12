@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ChevronLeft, User, Phone, MapPin, HeartPulse, AlertCircle, UserCheck, Check } from 'lucide-react';
+import { ChevronLeft, ChevronDown, User, Phone, MapPin, HeartPulse, AlertCircle, UserCheck, Check } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { api } from '../utils/api';
 
@@ -35,9 +35,9 @@ const MEDICAL_HISTORY_OPTIONS = [
 
 function Label({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
-    <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">
+    <label className="block text-xs font-medium text-slate-700 mb-1.5 tracking-tight">
       {children}
-      {required && <span className="text-red-500 ml-0.5">*</span>}
+      {required && <span className="text-rose-500 ml-0.5">*</span>}
     </label>
   );
 }
@@ -55,7 +55,7 @@ function FieldInput({
       onFocus={onFocus}
       placeholder={placeholder}
       disabled={disabled}
-      className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition disabled:bg-slate-50 disabled:cursor-not-allowed"
+      className="w-full px-3.5 py-2.5 text-sm border border-slate-300/80 rounded-lg text-slate-900 placeholder-slate-400 bg-white shadow-xs hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all disabled:bg-slate-50 disabled:cursor-not-allowed"
     />
   );
 }
@@ -66,24 +66,34 @@ function SelectField({
   value: string; onChange: (v: string) => void; options: { label: string; value: string }[]; placeholder?: string;
 }) {
   return (
-    <select
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition appearance-none"
-    >
-      {placeholder && <option value="">{placeholder}</option>}
-      {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-    </select>
+    <div className="relative">
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="w-full px-3.5 py-2.5 text-sm border border-slate-300/80 rounded-lg text-slate-900 bg-white shadow-xs hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all appearance-none pr-9 cursor-pointer"
+      >
+        {placeholder && <option value="">{placeholder}</option>}
+        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+    </div>
   );
 }
 
-function SectionHeader({ icon: Icon, title }: { icon: React.ElementType; title: string }) {
+function SectionHeader({ icon: Icon, title, badge }: { icon: React.ElementType; title: string; badge?: string }) {
   return (
-    <div className="flex items-center gap-2 pb-4 border-b border-slate-100 mb-5">
-      <div className="h-7 w-7 rounded-md bg-teal-50 flex items-center justify-center">
-        <Icon className="h-4 w-4 text-teal-600" />
+    <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
+      <div className="flex items-center gap-2.5">
+        <div className="h-8 w-8 rounded-lg bg-teal-50 border border-teal-100/60 flex items-center justify-center text-teal-600 shadow-xs">
+          <Icon className="h-4 w-4" />
+        </div>
+        <h3 className="text-sm font-semibold text-slate-900 tracking-tight">{title}</h3>
       </div>
-      <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
+      {badge && (
+        <span className="text-[11px] font-medium text-slate-400 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
+          {badge}
+        </span>
+      )}
     </div>
   );
 }
@@ -368,7 +378,7 @@ export function RegisterPatient() {
                 onChange={e => set('chiefComplaint')(e.target.value)}
                 placeholder="Describe the primary symptom or reason for the chest X-ray..."
                 rows={2}
-                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition resize-none"
+                className="w-full px-3.5 py-2.5 text-sm border border-slate-300/80 rounded-lg text-slate-900 placeholder-slate-400 bg-white shadow-xs hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition-all resize-none"
               />
             </div>
 

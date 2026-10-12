@@ -56,7 +56,7 @@ export function DoctorProfile() {
 
   const roleTitle = profile.role === 'admin' ? 'Chief Radiologist / Admin' : 'Diagnostic Radiologist';
   const displaySubtitle = (profile.title && !isDr) ? profile.title : roleTitle;
-  const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=0D8ABC&color=fff&size=256`;
+  const avatarUrl = profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=0D8ABC&color=fff&size=256`;
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-12">

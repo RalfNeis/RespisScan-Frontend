@@ -81,7 +81,7 @@ export function Layout() {
           >
             <div className="h-9 w-9 rounded-full bg-slate-700 overflow-hidden">
               <img 
-                src={`https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=0D8ABC&color=fff&size=64`}
+                src={user.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=0D8ABC&color=fff&size=64`}
                 alt={displayName} 
                 className="h-full w-full object-cover" 
               />

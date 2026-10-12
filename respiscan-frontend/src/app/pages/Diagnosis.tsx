@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Upload, FileDown, ScanHeart, CheckCircle, AlertTriangle, Play, RefreshCw, ZoomIn } from 'lucide-react';
+import { useLocation, useSearchParams } from 'react-router';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { api } from '../utils/api';
@@ -17,16 +18,39 @@ export function Diagnosis() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+
+  // Handle incoming patient state or query param on initial navigation
+  useEffect(() => {
+    const passedId = location.state?.selectedPatientId || searchParams.get('patient_id');
+    const passedName = location.state?.selectedPatientName;
+    const passedCode = location.state?.patientCode;
+
+    if (passedId) {
+      setPatientId(String(passedId));
+      if (passedName) {
+        setSearchTerm(`${passedName}${passedCode ? ` (${passedCode})` : ''}`);
+      }
+    }
+  }, [location.state, searchParams]);
+
   // Fetch patient list on mount
   useEffect(() => {
     api.get('/patients/')
       .then((res: any) => {
         const list = Array.isArray(res) ? res : res.results ?? [];
         setPatients(list);
-        if (list.length > 0) setPatientId(String(list[0].id));
+
+        const passedId = location.state?.selectedPatientId || searchParams.get('patient_id');
+        if (passedId && list.some(p => String(p.id) === String(passedId))) {
+          setPatientId(String(passedId));
+        } else if (!passedId && list.length > 0 && !patientId) {
+          setPatientId(String(list[0].id));
+        }
       })
       .catch(() => {});
-  }, []);
+  }, [location.state, searchParams]);
 
   // Fetch recent scans when patient changes
   useEffect(() => {

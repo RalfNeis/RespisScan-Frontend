@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   User, Lock, Bell, Sliders, Eye, EyeOff, Check,
   ShieldCheck, Monitor, Database, ChevronRight,
-  AlertTriangle, Fingerprint, LogOut
+  AlertTriangle, Fingerprint, LogOut, Camera, Trash2, Loader2
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '../context/AuthContext';
@@ -126,7 +126,7 @@ function SaveButton({ saved, label = 'Save Changes', onClick }: {
 
 /* ─── tab: Profile ───────────────────────────────────────── */
 
-function ProfileTab({ user }: { user: { first_name: string; last_name: string; username: string; email: string; role: string; title?: string; department?: string; license_number?: string; bio?: string } }) {
+function ProfileTab({ user }: { user: { first_name: string; last_name: string; username: string; email: string; role: string; title?: string; department?: string; license_number?: string; bio?: string; avatar_url?: string } }) {
   const [firstName, setFirstName] = useState(user.first_name || '');
   const [lastName, setLastName] = useState(user.last_name || '');
   const [email, setEmail] = useState(user.email || '');
@@ -136,6 +136,45 @@ function ProfileTab({ user }: { user: { first_name: string; last_name: string; u
   const [bio, setBio] = useState(user.bio || '');
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState('');
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const { refreshUser } = useAuth();
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setAvatarError('Photo size must be less than 5MB.');
+      return;
+    }
+    setUploadingAvatar(true);
+    setAvatarError('');
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+      await api.post('/auth/me/avatar/', formData);
+      await refreshUser();
+    } catch (err: any) {
+      setAvatarError(err?.message || 'Failed to upload photo.');
+    } finally {
+      setUploadingAvatar(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    setUploadingAvatar(true);
+    setAvatarError('');
+    try {
+      await api.delete('/auth/me/avatar/');
+      await refreshUser();
+    } catch (err: any) {
+      setAvatarError(err?.message || 'Failed to remove photo.');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   const save = async () => { 
     setSaving(true);
@@ -164,28 +203,78 @@ function ProfileTab({ user }: { user: { first_name: string; last_name: string; u
   return (
     <div className="space-y-4">
       {/* Avatar card */}
-      <div className="bg-white rounded-xl border border-slate-200 p-6 flex items-center gap-5">
-        <div className="h-16 w-16 rounded-full bg-slate-700 flex items-center justify-center
-          text-white text-xl font-bold select-none shrink-0">
-          {initials}
+      <div className="bg-white rounded-xl border border-slate-200 p-6 flex flex-col sm:flex-row sm:items-center gap-5">
+        <div className="relative group shrink-0">
+          <div className="h-20 w-20 rounded-full bg-slate-700 overflow-hidden flex items-center justify-center text-white text-2xl font-bold select-none border-2 border-slate-100 shadow-sm">
+            {user.avatar_url ? (
+              <img src={user.avatar_url} alt={name} className="h-full w-full object-cover" />
+            ) : (
+              <span>{initials}</span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadingAvatar}
+            className="absolute inset-0 rounded-full bg-black/40 text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-0"
+            title="Change photo"
+          >
+            <Camera className="h-5 w-5" />
+            <span className="text-[10px] font-medium mt-0.5">Change</span>
+          </button>
         </div>
+
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleAvatarUpload}
+          accept="image/png,image/jpeg,image/webp"
+          className="hidden"
+        />
+
         <div className="flex-1 min-w-0">
-          <p className="text-base font-semibold text-slate-900">{name}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-base font-semibold text-slate-900">{name}</p>
+            <span className={cn(
+              'px-2.5 py-0.5 rounded-full text-xs font-semibold',
+              user.role === 'admin'
+                ? 'bg-teal-50 text-teal-700 border border-teal-200'
+                : 'bg-slate-100 text-slate-600 border border-slate-200'
+            )}>
+              {user.role === 'admin' ? 'Administrator' : 'Employee'}
+            </span>
+          </div>
           <p className="text-sm text-slate-500 capitalize mt-0.5">
-            {user.role === 'admin' ? 'Administrator' : 'Employee'} {department && `· ${department}`}
+            {user.title || (user.role === 'admin' ? 'Chief Radiologist' : 'Diagnostic Radiologist')} {department && `· ${department}`}
           </p>
           {licenseNumber && (
             <p className="text-xs text-slate-400 mt-0.5 font-mono">PRC Lic. {licenseNumber}</p>
           )}
+
+          <div className="flex items-center gap-2 mt-3">
+            <button
+              type="button"
+              disabled={uploadingAvatar}
+              onClick={() => fileInputRef.current?.click()}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-medium text-slate-700 shadow-sm transition-colors disabled:opacity-50"
+            >
+              {uploadingAvatar ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5 text-slate-500" />}
+              {user.avatar_url ? 'Change Photo' : 'Upload Photo'}
+            </button>
+            {user.avatar_url && (
+              <button
+                type="button"
+                disabled={uploadingAvatar}
+                onClick={handleRemoveAvatar}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-200 bg-red-50/50 hover:bg-red-50 text-xs font-medium text-red-600 transition-colors disabled:opacity-50"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Remove
+              </button>
+            )}
+          </div>
+          {avatarError && <p className="text-xs text-red-600 mt-1.5">{avatarError}</p>}
         </div>
-        <span className={cn(
-          'px-2.5 py-1 rounded-full text-xs font-semibold',
-          user.role === 'admin'
-            ? 'bg-teal-50 text-teal-700 border border-teal-200'
-            : 'bg-slate-100 text-slate-600 border border-slate-200'
-        )}>
-          {user.role === 'admin' ? 'Administrator' : 'Employee'}
-        </span>
       </div>
 
       {/* Fields */}
