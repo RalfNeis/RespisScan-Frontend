@@ -474,8 +474,14 @@ export function PatientRecords() {
 
       {/* Patient Scan History Modal */}
       {showScanHistory && selectedPatientForScans && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowScanHistory(false); }}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-6 border-b border-slate-200 flex justify-between items-center shrink-0 bg-slate-50/50">
               <div>
                 <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -672,8 +678,14 @@ export function PatientRecords() {
 
       {/* Massive Edit Patient Modal */}
       {showEditModal && editPatient && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) { setShowEditModal(false); setEditPatient(null); } }}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-6 border-b border-slate-200 shrink-0 flex justify-between items-center">
               <div>
                 <h3 className="text-lg font-semibold text-slate-900">Edit Patient Record</h3>
@@ -889,8 +901,14 @@ export function PatientRecords() {
 
       {/* Delete Confirmation Dialog */}
       {showDeleteDialog && deletePatient && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) { setShowDeleteDialog(false); setDeletePatient(null); } }}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl w-full max-w-sm"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-6">
               <h3 className="text-lg font-semibold text-slate-900 mb-2">Delete Patient Record</h3>
               <p className="text-sm text-slate-600">

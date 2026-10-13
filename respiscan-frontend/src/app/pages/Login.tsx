@@ -14,7 +14,6 @@ export function Login() {
   const [password, setPassword] = useState('');
   const [otpToken, setOtpToken] = useState('');
   const [otpRequired, setOtpRequired] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -23,7 +22,7 @@ export function Login() {
     setError(null);
     setSubmitting(true);
     try {
-      const result = await login(username, password, role, otpRequired ? otpToken : undefined, rememberMe);
+      const result = await login(username, password, role, otpRequired ? otpToken : undefined, false);
       if (result.otpRequired) {
         setOtpRequired(true);
       } else {
@@ -39,8 +38,14 @@ export function Login() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative">
       {sessionExpired && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center animate-in fade-in zoom-in duration-200">
+        <div
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) clearSessionExpired(); }}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center animate-in fade-in zoom-in duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-100 mb-5">
               <AlertTriangle className="h-7 w-7 text-red-600" />
             </div>
@@ -124,26 +129,10 @@ export function Login() {
                     placeholder="••••••••"
                   />
 
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <input
-                        id="remember-me"
-                        name="remember-me"
-                        type="checkbox"
-                        checked={rememberMe}
-                        onChange={(e) => setRememberMe(e.target.checked)}
-                        className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-slate-300 rounded"
-                      />
-                      <label htmlFor="remember-me" className="ml-2 block text-sm text-slate-900">
-                        Remember me
-                      </label>
-                    </div>
-
-                    <div className="text-sm">
-                      <a href="#" className="font-medium text-teal-600 hover:text-teal-500">
-                        Forgot your password?
-                      </a>
-                    </div>
+                  {/* Security Notice for Clinical Workstation */}
+                  <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 text-xs text-slate-500 flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-teal-600 shrink-0" />
+                    <span>Secure clinical workstation. Sessions automatically lock after inactivity.</span>
                   </div>
                 </>
               ) : (

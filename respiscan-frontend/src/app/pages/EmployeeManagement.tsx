@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Plus, Edit2, Trash2, CheckCircle, XCircle, X } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, CheckCircle, XCircle, X, KeyRound, Eye, EyeOff, Sparkles, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -39,6 +39,16 @@ export function EmployeeManagement() {
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  // Dual Admin & Employee Password Reset state
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
+  const [resetTargetUser, setResetTargetUser] = useState<Employee | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [showPasswordText, setShowPasswordText] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
+  const [resetSuccessMessage, setResetSuccessMessage] = useState('');
+  const [resetErrorMessage, setResetErrorMessage] = useState('');
+
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -81,9 +91,8 @@ export function EmployeeManagement() {
     setSaving(true);
     setError('');
     try {
-      const { password, ...rest } = formData;
-      const payload = password ? { ...rest, password } : rest;
-      await api.patch(`/auth/employees/${selectedEmployee.id}/`, payload);
+      const { password: _password, ...rest } = formData;
+      await api.patch(`/auth/employees/${selectedEmployee.id}/`, rest);
       setShowEditModal(false);
       setSelectedEmployee(null);
       fetchEmployees();
@@ -134,6 +143,51 @@ export function EmployeeManagement() {
   const openDeleteDialog = (emp: Employee) => {
     setSelectedEmployee(emp);
     setShowDeleteDialog(true);
+  };
+
+  const openResetPasswordModal = (emp: Employee) => {
+    setResetTargetUser(emp);
+    setNewPassword('');
+    setShowPasswordText(false);
+    setResetErrorMessage('');
+    setResetSuccessMessage('');
+    setShowResetPasswordModal(true);
+  };
+
+  const generateRandomPassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%&*';
+    let pwd = 'RespiScan!';
+    for (let i = 0; i < 4; i++) {
+      pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setNewPassword(pwd);
+    setShowPasswordText(true);
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetTargetUser) return;
+    if (newPassword.length < 8) {
+      setResetErrorMessage('Password must be at least 8 characters long.');
+      return;
+    }
+    setResettingPassword(true);
+    setResetErrorMessage('');
+    setResetSuccessMessage('');
+    try {
+      const res: any = await api.post(`/auth/employees/${resetTargetUser.id}/reset-password/`, {
+        password: newPassword,
+      });
+      setResetSuccessMessage(res?.message || 'Password reset successfully!');
+      setTimeout(() => {
+        setShowResetPasswordModal(false);
+        setResetTargetUser(null);
+        setResetSuccessMessage('');
+      }, 1500);
+    } catch (e: any) {
+      setResetErrorMessage(e?.body?.error || e?.message || 'Failed to reset password.');
+    } finally {
+      setResettingPassword(false);
+    }
   };
 
   if (user?.role !== 'admin') return null;
@@ -201,7 +255,15 @@ export function EmployeeManagement() {
                     </button>
                   </td>
                   <td className="px-6 py-4 text-slate-700">{emp.username}</td>
-                  <td className="px-6 py-4 text-slate-700 capitalize">{emp.role}</td>
+                  <td className="px-6 py-4">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                      emp.role === 'admin' 
+                        ? 'bg-purple-100 text-purple-700 border border-purple-200' 
+                        : 'bg-slate-100 text-slate-700 border border-slate-200'
+                    }`}>
+                      {emp.role === 'admin' ? 'Administrator' : 'Employee'}
+                    </span>
+                  </td>
                   <td className="px-6 py-4 text-slate-700">{emp.department || '—'}</td>
                   <td className="px-6 py-4 text-slate-700 font-mono text-xs">{emp.license_number || '—'}</td>
                   <td className="px-6 py-4">
@@ -225,6 +287,10 @@ export function EmployeeManagement() {
                           <XCircle className="h-4 w-4" />
                         </button>
                       )}
+                      <button onClick={() => openResetPasswordModal(emp)} title={`Reset password for ${emp.first_name || emp.username}`}
+                        className="p-2 text-slate-400 hover:text-amber-600 transition-colors">
+                        <KeyRound className="h-4 w-4" />
+                      </button>
                       <button onClick={() => openEditModal(emp)} title="Edit"
                         className="p-2 text-slate-400 hover:text-teal-600 transition-colors">
                         <Edit2 className="h-4 w-4" />
@@ -247,8 +313,14 @@ export function EmployeeManagement() {
 
       {/* Add / Edit Employee Modal */}
       {showFormModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) formOnClose(); }}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-6 border-b border-slate-200">
               <h3 className="text-lg font-semibold text-slate-900">{formTitle}</h3>
             </div>
@@ -309,13 +381,17 @@ export function EmployeeManagement() {
                   value={formData.bio} onChange={e => setFormData({ ...formData, bio: e.target.value })} 
                   placeholder="Short description, qualifications, or notes..." />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">
-                  Password {showEditModal ? '(leave blank to keep current)' : '*'}
-                </label>
-                <input type="password" className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} />
-              </div>
+              {showAddModal && (
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Password *</label>
+                  <input
+                    type="password"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    value={formData.password}
+                    onChange={e => setFormData({ ...formData, password: e.target.value })}
+                  />
+                </div>
+              )}
             </div>
             <div className="p-6 border-t border-slate-200 flex justify-end gap-3">
               <Button variant="outline" onClick={formOnClose} disabled={saving}>Cancel</Button>
@@ -327,8 +403,14 @@ export function EmployeeManagement() {
 
       {/* Delete Confirmation Dialog */}
       {showDeleteDialog && selectedEmployee && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) { setShowDeleteDialog(false); setSelectedEmployee(null); } }}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl w-full max-w-sm"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-6">
               <h3 className="text-lg font-semibold text-slate-900 mb-2">Confirm Deactivation</h3>
               <p className="text-sm text-slate-600">
@@ -347,8 +429,14 @@ export function EmployeeManagement() {
       )}
       {/* Profile Modal */}
       {showProfileModal && selectedEmployee && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) { setShowProfileModal(false); setSelectedEmployee(null); } }}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="relative h-32 bg-slate-900 overflow-hidden">
               <div className="absolute inset-0 opacity-30 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-teal-500 via-slate-900 to-slate-900"></div>
               <button 
@@ -408,6 +496,131 @@ export function EmployeeManagement() {
                   </p>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Password Modal (Alternative 2: Admin & Co-Admin Recovery) */}
+      {showResetPasswordModal && resetTargetUser && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-150"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowResetPasswordModal(false); }}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50/70">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-lg bg-amber-50 text-amber-600 border border-amber-200">
+                  <KeyRound className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Reset Account Password</h3>
+                  <p className="text-xs text-slate-500">Dual-Admin & Clinical Credential Recovery</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowResetPasswordModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Target User Info */}
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80 flex items-center justify-between">
+                <div>
+                  <p className="font-semibold text-slate-900 text-sm">
+                    {resetTargetUser.first_name} {resetTargetUser.last_name || `(${resetTargetUser.username})`}
+                  </p>
+                  <p className="text-xs text-slate-500 font-mono mt-0.5">@{resetTargetUser.username}</p>
+                </div>
+                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                  resetTargetUser.role === 'admin' 
+                    ? 'bg-purple-100 text-purple-700 border border-purple-200' 
+                    : 'bg-teal-100 text-teal-700 border border-teal-200'
+                }`}>
+                  {resetTargetUser.role === 'admin' ? 'Administrator' : 'Employee'}
+                </span>
+              </div>
+
+              {/* Informational Notice */}
+              <div className="text-xs text-slate-600 bg-amber-50/60 border border-amber-200/60 rounded-lg p-3 leading-relaxed">
+                {resetTargetUser.role === 'admin' ? (
+                  <span>
+                    <strong>Co-Administrator Recovery:</strong> As an Administrator, you are directly authorizing new credentials for this account. They will be able to log in immediately without requiring an email reset link.
+                  </span>
+                ) : (
+                  <span>
+                    <strong>Staff Password Reset:</strong> Sets new credentials directly in compliance with medical workstation security. The staff member can sign in immediately.
+                  </span>
+                )}
+              </div>
+
+              {resetErrorMessage && (
+                <p className="text-xs text-red-600 bg-red-50 border border-red-200 p-2.5 rounded-lg font-medium">
+                  {resetErrorMessage}
+                </p>
+              )}
+
+              {resetSuccessMessage && (
+                <p className="text-xs text-green-700 bg-green-50 border border-green-200 p-2.5 rounded-lg font-medium flex items-center gap-1.5">
+                  <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+                  {resetSuccessMessage}
+                </p>
+              )}
+
+              {/* Password Input */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium text-slate-700">New Password (min 8 chars)</label>
+                  <button
+                    type="button"
+                    onClick={generateRandomPassword}
+                    className="text-[11px] font-medium text-teal-600 hover:text-teal-700 flex items-center gap-1"
+                  >
+                    <Sparkles className="h-3 w-3" /> Auto-generate
+                  </button>
+                </div>
+                <div className="relative">
+                  <input
+                    type={showPasswordText ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Enter new secure password..."
+                    className="w-full px-3 py-2 pr-10 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswordText(!showPasswordText)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                  >
+                    {showPasswordText ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-2.5">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowResetPasswordModal(false)}
+                disabled={resettingPassword}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleResetPassword}
+                disabled={resettingPassword || !newPassword || newPassword.length < 8}
+                className="bg-amber-600 hover:bg-amber-700 text-white"
+              >
+                {resettingPassword ? 'Saving...' : 'Set New Password'}
+              </Button>
             </div>
           </div>
         </div>
